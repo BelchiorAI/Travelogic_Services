@@ -27,3 +27,25 @@ npm run dev
 - TypeScript
 - React
 - Tailwind CSS
+
+## Environment variables
+
+Supplier Hub is a frontend-only app that talks to an external ASP.NET Core REST API.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `http://localhost:5000` | Base URL of the Supplier Hub API. Endpoints are called as `<base>/api/v1/...`. |
+| `VITE_USE_MOCKS` | `true` | When `"true"`, all API calls are served by an in-memory mock (six South African suppliers, simulated latency, pagination, search, type filtering, AI extraction and a 400 validation example). Set to `false` to call the real API. |
+
+Create a `.env.local` to point the app at a running API:
+
+```sh
+VITE_API_BASE_URL=https://localhost:5001
+VITE_USE_MOCKS=false
+```
+
+### Mock validation example
+
+With mocks on, saving a supplier whose email ends in `@example.com`, whose name is `Test`,
+or with a service price above 1 000 000 returns an RFC 7807 `ProblemDetails` 400 response,
+so the field-level error mapping (`Services[0].Price` -> `services.0.price`) can be tested.
