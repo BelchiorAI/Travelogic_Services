@@ -1,25 +1,31 @@
 import { z } from "zod";
 
-import {
-  PRICING_UNITS,
-  SERVICE_TYPES,
-  SUPPLIER_TYPES,
-  type CreateSupplierRequest,
-} from "@/api/types";
+import type { CreateSupplierRequest } from "@/api/types";
 
-const supplierTypeEnum = z.enum(
-  SUPPLIER_TYPES as [string, ...string[]],
-) as unknown as z.ZodEnum<["Accommodation", "Activity", "Transport", "Restaurant", "Other"]>;
+const supplierTypeEnum = z.enum([
+  "Accommodation",
+  "Activity",
+  "Transport",
+  "Restaurant",
+  "Other",
+]);
 
-const serviceTypeEnum = z.enum(
-  SERVICE_TYPES as [string, ...string[]],
-) as unknown as z.ZodEnum<["Accommodation", "Activity", "Tour", "Transfer", "Meal", "Other"]>;
+const serviceTypeEnum = z.enum([
+  "Accommodation",
+  "Activity",
+  "Tour",
+  "Transfer",
+  "Meal",
+  "Other",
+]);
 
-const pricingUnitEnum = z.enum(
-  PRICING_UNITS as [string, ...string[]],
-) as unknown as z.ZodEnum<
-  ["PerPerson", "PerPersonPerNight", "PerRoomPerNight", "PerVehicle", "PerGroup"]
->;
+const pricingUnitEnum = z.enum([
+  "PerPerson",
+  "PerPersonPerNight",
+  "PerRoomPerNight",
+  "PerVehicle",
+  "PerGroup",
+]);
 
 const optionalNumber = z
   .union([z.number(), z.nan()])
