@@ -2,26 +2,16 @@ import type { PricingUnit, ServiceType, SupplierType } from "@/api/types";
 
 /** Formats an amount as South African Rand, e.g. "R 4 500,00". */
 export function formatCurrency(amount: number, currency = "ZAR"): string {
-  const formatted = new Intl.NumberFormat("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-    .format(amount)
-    // en-ZA uses a comma decimal separator and a space group separator, but
-    // engines differ: normalise to "4 500,00".
-    .replace(/\u00a0/g, " ");
+  const negative = amount < 0;
+  const value = Math.abs(amount);
+  const whole = Math.floor(value);
+  const cents = Math.round((value - whole) * 100);
 
+  // Space-grouped thousands with a comma decimal separator (South African style).
+  const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   const symbol = currency === "ZAR" ? "R" : currency;
-  return `${symbol} ${normaliseNumber(formatted)}`;
-}
 
-function normaliseNumber(value: string): string {
-  if (value.includes(",") && value.includes(".")) {
-    return value.replace(/\./g, " ");
-  }
-  if (value.includes(",")) return value;
-  // Fallback for locales rendered as 4,500.00
-  return value.replace(/,/g, " ").replace(/\.(\d{2})$/, ",$1");
+  return `${negative ? "-" : ""}${symbol} ${grouped},${cents.toString().padStart(2, "0")}`;
 }
 
 /** 245 -> "4 h 5 min", 240 -> "4 h", 45 -> "45 min" */
