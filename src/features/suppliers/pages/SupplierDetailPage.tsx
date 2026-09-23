@@ -1,5 +1,6 @@
 import { Link, getRouteApi } from "@tanstack/react-router";
 import { ChevronLeft, Globe, Mail, MapPin, Phone } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { ApiError } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -123,9 +124,9 @@ function Detail({
   label,
   children,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="flex items-start gap-3">
