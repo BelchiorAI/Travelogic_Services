@@ -53,15 +53,16 @@ export function serviceTypeLabel(type: ServiceType): string {
 }
 
 /** "2026-09-23T10:00:00Z" -> "23 Sep 2026" */
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 export function formatDate(iso: string): string {
   const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
+  if (Number.isNaN(date.getTime())) return "\u2014";
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${day} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
 export function minutesToHm(minutes: number | null | undefined) {
