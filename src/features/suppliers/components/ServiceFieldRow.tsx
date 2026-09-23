@@ -185,7 +185,7 @@ export function ServiceFieldRow({ index, canRemove, onRemove }: ServiceFieldRowP
   );
 }
 
-export function FieldError({ message }: { message?: string }) {
+export function FieldError({ message }: { message?: string | undefined }) {
   if (!message) return null;
   return (
     <p role="alert" className="mt-1.5 text-sm font-medium text-destructive">

@@ -4,9 +4,9 @@ import { SUPPLIER_TYPES, type SupplierType } from "@/api/types";
 import { SupplierListPage } from "@/features/suppliers/pages/SupplierListPage";
 
 interface SupplierSearch {
-  page: number;
-  search?: string;
-  type?: SupplierType;
+  page?: number | undefined;
+  search?: string | undefined;
+  type?: SupplierType | undefined;
 }
 
 export const Route = createFileRoute("/")({

@@ -16,7 +16,7 @@ export function SupplierListPage() {
   const navigate = routeApi.useNavigate();
 
   const query = useSuppliers({
-    page: search.page,
+    page: search.page ?? 1,
     pageSize: PAGE_SIZE,
     search: search.search,
     type: search.type,

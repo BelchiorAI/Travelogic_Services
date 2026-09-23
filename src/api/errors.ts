@@ -4,8 +4,8 @@ import type { ProblemDetails } from "./types";
 export class ApiError extends Error {
   readonly status: number;
   readonly title: string;
-  readonly detail?: string;
-  readonly errors?: Record<string, string[]>;
+  readonly detail?: string | undefined;
+  readonly errors?: Record<string, string[]> | undefined;
 
   constructor(status: number, title: string, problem?: ProblemDetails) {
     super(problem?.detail || title);

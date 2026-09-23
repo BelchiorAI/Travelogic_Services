@@ -69,22 +69,22 @@ export interface PagedResult<T> {
 
 export interface CreateServiceRequest {
   name: string;
-  description?: string;
+  description?: string | undefined;
   type: ServiceType;
   price: number;
   currency: string;
   pricingUnit: PricingUnit;
-  durationMinutes?: number;
-  capacity?: number;
+  durationMinutes?: number | undefined;
+  capacity?: number | undefined;
 }
 
 export interface CreateSupplierRequest {
   name: string;
   type: SupplierType;
   email: string;
-  phone?: string;
-  website?: string;
-  addressLine?: string;
+  phone?: string | undefined;
+  website?: string | undefined;
+  addressLine?: string | undefined;
   city: string;
   country: string;
   services: CreateServiceRequest[];
@@ -100,18 +100,18 @@ export interface ExtractSupplierResponse {
 }
 
 export interface ProblemDetails {
-  type?: string;
-  title?: string;
-  status?: number;
-  detail?: string;
-  errors?: Record<string, string[]>;
+  type?: string | undefined;
+  title?: string | undefined;
+  status?: number | undefined;
+  detail?: string | undefined;
+  errors?: Record<string, string[]> | undefined;
 }
 
 export interface SupplierListParams {
-  page?: number;
-  pageSize?: number;
-  search?: string;
-  type?: SupplierType | "";
+  page?: number | undefined;
+  pageSize?: number | undefined;
+  search?: string | undefined;
+  type?: SupplierType | "" | undefined;
 }
 
 export const SUPPLIER_TYPES: SupplierType[] = [
