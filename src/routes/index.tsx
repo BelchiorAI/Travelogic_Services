@@ -1,24 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
-export const Route = createFileRoute("/")({
-  component: Index,
-});
+import { SUPPLIER_TYPES, type SupplierType } from "@/api/types";
+import { SupplierListPage } from "@/features/suppliers/pages/SupplierListPage";
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+interface SupplierSearch {
+  page?: number | undefined;
+  search?: string | undefined;
+  type?: SupplierType | undefined;
 }
+
+export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): SupplierSearch => {
+    const page = Number(search["page"]);
+    const type = String(search["type"] ?? "");
+    const term = String(search["search"] ?? "").trim();
+    return {
+      page: Number.isFinite(page) && page > 0 ? Math.floor(page) : 1,
+      search: term || undefined,
+      type: SUPPLIER_TYPES.includes(type as SupplierType)
+        ? (type as SupplierType)
+        : undefined,
+    };
+  },
+  head: () => ({
+    meta: [
+      { title: "Suppliers — Supplier Hub" },
+      {
+        name: "description",
+        content:
+          "Browse, search and filter the tourism suppliers and services captured in Supplier Hub.",
+      },
+      { property: "og:title", content: "Suppliers — Supplier Hub" },
+      {
+        property: "og:description",
+        content:
+          "Browse, search and filter the tourism suppliers and services captured in Supplier Hub.",
+      },
+    ],
+  }),
+  component: SupplierListPage,
+});
