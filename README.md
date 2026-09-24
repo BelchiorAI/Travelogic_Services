@@ -76,6 +76,9 @@ All routes are versioned under `/api/v1`. JSON properties are camelCase, and enu
 | GET | `/api/v1/suppliers/{id}` | 200 `SupplierDto` / 404 |
 | POST | `/api/v1/suppliers` | 201 + `Location` / 400 / 409 |
 | POST | `/api/v1/suppliers/extract` | 200 `{ draft, warnings }` / 400 / 429 / 502 / 503 |
+| POST | `/api/v1/suppliers/{id}/media` | 201 `MediaDto` / 400 / 404 / 413 (multipart, field `file`) |
+| DELETE | `/api/v1/suppliers/{id}/media/{mediaId}` | 204 / 404 |
+| GET | `/api/v1/media/{mediaId}` | 200 or 206 the file (range requests for video streaming) / 404 |
 | GET | `/api/v1/features` | 200 `{ aiExtraction: bool }` |
 | GET | `/health/live`, `/health/ready` | 200 when the process is up / when SQL Server is also reachable |
 
@@ -97,6 +100,8 @@ Errors are RFC 7807 ProblemDetails. Validation errors use keys that match the fo
 ```
 
 **Business rules:** names are required and at most 200 characters; prices are 0 or more; currency is a 3-letter uppercase ISO code (e.g. `ZAR`); duration and capacity must be positive when given; a supplier has at most 50 services; the same supplier name cannot be used twice in one city (409).
+
+**Photos and videos:** JPEG, PNG or WebP images up to 10 MB and MP4 or WebM videos up to 100 MB, at most 20 per supplier. The file type is identified from the file's first bytes, never from its name or declared type. `SupplierDto.media` lists them, and list items carry a `coverImageUrl` (the oldest photo). Files are stored under `Media:RootPath` (default `media/`; a Docker volume in compose).
 
 ## AI extraction (optional)
 
@@ -149,6 +154,7 @@ CI (`.github/workflows/ci.yml`) runs the build and all tests, and builds the Doc
 - **Optimistic concurrency** with a `rowversion` column, ready for updates.
 - **Missing values fail validation instead of defaulting.** Supplier type, service price and pricing unit are nullable in the request, so omitting them returns 400 rather than silently creating an Accommodation supplier priced at 0.
 - **Independent service:** own schema and database, config from the environment, live/ready health checks (restart vs. stop sending traffic, as orchestrators like Kubernetes do), runs as a non-root user in its container.
+- **Media storage is a port.** `IMediaStorage` has a local-disk adapter (writes via a temp file, refuses paths outside its folder); a blob-storage adapter (Azure Blob, S3) can replace it without touching the use cases. The database holds only metadata, and media URLs are immutable, so they are cached for a year.
 - **AI is an adapter behind a port.** The model plugs in through `IChatClient`, is switched off without a key, is rate-limited because calls cost money, treats the pasted text strictly as data, and never writes to the database.
 - **Development convenience vs. secrets:** the local connection string uses the same throwaway password as `docker-compose.yml`, so a fresh clone runs in one command. Real deployments set `ConnectionStrings__SuppliersDb` and `MSSQL_SA_PASSWORD` from a secret store.
 
@@ -158,6 +164,7 @@ CI (`.github/workflows/ci.yml`) runs the build and all tests, and builds the Doc
 - Availability and allocations.
 - Update and delete endpoints (the aggregate and `rowversion` are ready for them).
 - Publish a `SupplierCreated` event through a transactional outbox, so other services can react.
-- Authentication and authorisation.
+- Authentication and authorisation (uploads and deletes are currently open, like the rest of the API).
+- Blob storage and a CDN for media, thumbnails for large photos, and virus scanning of uploads.
 - A `web` service in Docker Compose serving the built frontend through nginx.
 - Generate the frontend's TypeScript types from the OpenAPI document.
