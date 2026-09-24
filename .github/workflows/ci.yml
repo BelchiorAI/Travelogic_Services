@@ -50,4 +50,5 @@ jobs:
 
       # The formatting rule is off until the code inherited from Lovable is run through Prettier once.
       - name: Lint
-        run: bunx eslint . --rule "prettier/prettier: off"
+        run: |
+          bunx eslint . --rule "prettier/prettier: off"
