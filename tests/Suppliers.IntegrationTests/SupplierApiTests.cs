@@ -137,6 +137,21 @@ public class SupplierApiTests(SuppliersApiFactory factory) : ApiTestBase(factory
         page2.Items.ShouldHaveSingleItem().Name.ShouldBe("Marula Bush Lodge");
     }
 
+    [Theory]
+    [InlineData("cape town")]
+    [InlineData("tablebay.example")]
+    [InlineData("table bay")]
+    public async Task Search_matches_name_city_or_email(string term)
+    {
+        await CreateAsync(Supplier("Table Bay Hotel", city: "Cape Town") with { Email = "stay@tablebay.example" });
+        await CreateAsync(Supplier("Marula Bush Lodge", city: "Hazyview"));
+
+        var result = await Client.GetFromJsonAsync<PagedResult<SupplierSummaryDto>>(
+            $"{SuppliersUrl}?search={Uri.EscapeDataString(term)}", Json);
+
+        result!.Items.ShouldHaveSingleItem().Name.ShouldBe("Table Bay Hotel");
+    }
+
     [Fact]
     public async Task List_caps_page_size_at_50()
     {

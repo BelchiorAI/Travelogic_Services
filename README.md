@@ -72,7 +72,7 @@ All routes are versioned under `/api/v1`. JSON properties are camelCase, and enu
 
 | Method | Route | Returns |
 | --- | --- | --- |
-| GET | `/api/v1/suppliers?page&pageSize&search&type` | 200 `PagedResult<SupplierSummaryDto>` (page size capped at 50) |
+| GET | `/api/v1/suppliers?page&pageSize&search&type` | 200 `PagedResult<SupplierSummaryDto>`; `search` matches name, city or email; page size capped at 50 |
 | GET | `/api/v1/suppliers/{id}` | 200 `SupplierDto` / 404 |
 | POST | `/api/v1/suppliers` | 201 + `Location` / 400 / 409 |
 | POST | `/api/v1/suppliers/extract` | 200 `{ draft, warnings }` / 400 / 429 / 502 / 503 |

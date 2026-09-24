@@ -46,7 +46,10 @@ internal sealed class SupplierQueries(SuppliersDbContext db) : ISupplierQueries
         var suppliers = db.Suppliers.AsNoTracking();
 
         if (query.Search is { } search)
-            suppliers = suppliers.Where(s => s.Name.Contains(search));
+        {
+            suppliers = suppliers.Where(s =>
+                s.Name.Contains(search) || s.City.Contains(search) || (s.Email != null && s.Email.Contains(search)));
+        }
 
         if (query.Type is { } type)
             suppliers = suppliers.Where(s => s.Type == type);
