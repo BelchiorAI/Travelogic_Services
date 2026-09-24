@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Suppliers.Infrastructure.Persistence;
 using Testcontainers.MsSql;
 
@@ -37,7 +40,19 @@ public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsync
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:SuppliersDb", connectionString);
         builder.UseSetting("Database:ApplyMigrationsOnStartup", "true");
+
+        // AI extraction is enabled, but talks to a fake model so no test ever calls a real one.
+        builder.UseSetting("Ai:Enabled", "true");
+        builder.UseSetting("Ai:Model", "fake-model");
+        builder.UseSetting("Ai:ApiKey", "fake-key");
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IChatClient>();
+            services.AddSingleton<IChatClient>(ChatClient);
+        });
     }
+
+    public FakeChatClient ChatClient { get; } = new();
 
     /// <summary>Gives a test a clean database. Services are removed by the cascade delete.</summary>
     public async Task ResetDatabaseAsync()

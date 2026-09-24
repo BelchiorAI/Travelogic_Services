@@ -46,6 +46,8 @@ builder.Services.AddHealthChecks()
         name: "sqlserver",
         tags: ["ready"]);
 
+builder.Services.AddApiRateLimiting();
+
 const string FrontendCorsPolicy = "Frontend";
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
@@ -65,11 +67,13 @@ if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
-    // Expected errors (400, 409) are part of the contract; only log the ones that became a 5xx.
-    SuppressDiagnosticsCallback = context => context.HttpContext.Response.StatusCode < StatusCodes.Status500InternalServerError,
+    // Expected errors (400, 409, and 503 for a switched-off feature) are part of the contract; log the other 5xx.
+    SuppressDiagnosticsCallback = context => context.HttpContext.Response.StatusCode
+        is < StatusCodes.Status500InternalServerError or StatusCodes.Status503ServiceUnavailable,
 });
 app.UseStatusCodePages();
 app.UseCors(FrontendCorsPolicy);
+app.UseRateLimiter();
 
 app.MapOpenApi().WithDocumentPerVersion();
 app.MapScalarApiReference(options => options.WithTitle("Supplier API"));

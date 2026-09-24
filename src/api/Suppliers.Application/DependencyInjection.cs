@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Suppliers.Application.Suppliers.Create;
+using Suppliers.Application.Suppliers.Extract;
 using Suppliers.Application.Suppliers.GetById;
 using Suppliers.Application.Suppliers.List;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<CreateSupplierHandler>();
         services.AddScoped<GetSupplierByIdHandler>();
         services.AddScoped<ListSuppliersHandler>();
+        services.AddScoped<ExtractSupplierDraftHandler>();
 
         return services;
     }

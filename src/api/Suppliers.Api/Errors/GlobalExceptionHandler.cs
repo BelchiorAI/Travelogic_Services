@@ -30,6 +30,18 @@ internal sealed class GlobalExceptionHandler(IProblemDetailsService problemDetai
                 Title = "Conflict",
                 Detail = conflict.Message,
             },
+            FeatureDisabledException disabled => new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Feature not available",
+                Detail = disabled.Message,
+            },
+            ExtractionFailedException failed => new ProblemDetails
+            {
+                Status = StatusCodes.Status502BadGateway,
+                Title = "The AI model failed",
+                Detail = failed.Message,
+            },
             BadHttpRequestException badRequest => new ProblemDetails
             {
                 // Malformed JSON, unknown enum names, wrong types in the body or query string.

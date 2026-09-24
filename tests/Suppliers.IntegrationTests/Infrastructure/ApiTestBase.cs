@@ -20,7 +20,13 @@ public abstract class ApiTestBase(SuppliersApiFactory factory) : IAsyncLifetime
 
     protected HttpClient Client { get; } = factory.CreateClient();
 
-    public Task InitializeAsync() => factory.ResetDatabaseAsync();
+    protected SuppliersApiFactory Factory { get; } = factory;
+
+    public Task InitializeAsync()
+    {
+        Factory.ChatClient.Reset();
+        return Factory.ResetDatabaseAsync();
+    }
 
     public Task DisposeAsync()
     {

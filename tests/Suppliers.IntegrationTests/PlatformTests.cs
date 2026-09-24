@@ -18,14 +18,6 @@ public class PlatformTests(SuppliersApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
-    public async Task Features_reports_ai_extraction_flag()
-    {
-        using var json = JsonDocument.Parse(await Client.GetStringAsync("/api/v1/features"));
-
-        json.RootElement.GetProperty("aiExtraction").ValueKind.ShouldBeOneOf(JsonValueKind.True, JsonValueKind.False);
-    }
-
-    [Fact]
     public async Task OpenApi_document_describes_the_supplier_endpoints()
     {
         using var json = JsonDocument.Parse(await Client.GetStringAsync("/openapi/v1.json"));

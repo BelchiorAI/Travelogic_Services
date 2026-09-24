@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Suppliers.Application.Suppliers.Common;
 using Suppliers.Application.Suppliers.Create;
+using Suppliers.Application.Suppliers.Extract;
 using Suppliers.Application.Suppliers.GetById;
 using Suppliers.Application.Suppliers.List;
 using Suppliers.Domain.Suppliers;
@@ -30,8 +31,27 @@ internal static class SupplierEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        suppliers.MapPost("/extract", ExtractSupplierDraft)
+            .WithName("ExtractSupplierDraft")
+            .WithSummary("Extract a supplier draft from pasted text with AI")
+            .WithDescription(
+                $"Returns a draft to pre-fill the create form plus warnings keyed like validation errors. Nothing is saved. " +
+                $"Text is limited to {ExtractSupplierDraftRequest.MaxTextLength:N0} characters and requests to 10 per minute. " +
+                "Returns 503 when AI extraction is not enabled (see /features).")
+            .RequireRateLimiting(RateLimitPolicies.AiExtraction)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
+            .ProducesProblem(StatusCodes.Status502BadGateway)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
+
         return v1;
     }
+
+    private static async Task<Ok<ExtractSupplierDraftResult>> ExtractSupplierDraft(
+        ExtractSupplierDraftRequest request,
+        ExtractSupplierDraftHandler handler,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await handler.HandleAsync(request, cancellationToken));
 
     /// <summary>Query-string parameters for the list endpoint.</summary>
     internal sealed record ListSuppliersParameters(int? Page, int? PageSize, string? Search, SupplierType? Type);

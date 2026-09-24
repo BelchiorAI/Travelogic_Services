@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Suppliers.Application.Abstractions;
 
 namespace Suppliers.Api.Endpoints;
 
@@ -17,6 +18,6 @@ internal static class FeatureEndpoints
         return v1;
     }
 
-    // AI extraction arrives in Phase 7; until then it is always off.
-    private static Ok<FeaturesResponse> GetFeatures() => TypedResults.Ok(new FeaturesResponse(AiExtraction: false));
+    private static Ok<FeaturesResponse> GetFeatures(ISupplierExtractionService extraction) =>
+        TypedResults.Ok(new FeaturesResponse(AiExtraction: extraction.IsEnabled));
 }
