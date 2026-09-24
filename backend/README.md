@@ -8,29 +8,69 @@ Tour operators keep supplier details in spreadsheets, emails and PDF contracts. 
 
 ## Architecture
 
-Clean Architecture with ports and adapters: dependencies point inward, and the Domain has no framework dependencies at all.
+### Runtime view
+
+The API owns the data and the rules; **S3 holds the photo and video files**, and the database keeps only a reference (the S3 key) to each one. File bytes travel directly between the browser and S3 through short-lived signed URLs, so large videos never pass through the API.
+
+```mermaid
+flowchart LR
+    Web[Browser<br/>Supplier Hub] -- "JSON /api/v1" --> Api[Supplier API<br/>.NET 10]
+    Web -- "upload / download files<br/>(signed URLs)" --> S3[(S3 bucket<br/>photos and videos)]
+    Api -- "suppliers, services,<br/>media references" --> Db[(SQL Server<br/>supplier schema)]
+    Api -- "sign URLs, check uploaded files" --> S3
+    Api -. "optional AI import" .-> Llm[AI model<br/>Gemini / OpenAI-compatible]
+```
+
+Locally, `docker compose` runs SQL Server and [Versity S3 Gateway](https://github.com/versity/versitygw) (an S3-compatible server) next to the API; in production the bucket is AWS S3 or any S3-compatible service.
+
+### Layers
+
+Clean Architecture with ports and adapters: dependencies point inward, and the Domain has no framework dependencies at all. Infrastructure implements the ports that Application defines, so the database, file storage and AI model can each be replaced without touching the use cases.
 
 ```mermaid
 flowchart TD
-    Web[React SPA] --> Api[Api<br/>Endpoints, errors, health]
-    Api --> App[Application<br/>Use cases, validation, ports]
-    App --> Dom[Domain<br/>Supplier, Service, rules]
-    Per[Persistence<br/>EF Core] --> Dom
-    AI[AI adapter<br/>IChatClient] --> Dom
-    Per --> Db[(SQL Server<br/>supplier schema)]
-    AI -.-> Llm[LLM provider<br/>optional]
+    Api[Api<br/>Endpoints, errors, health, CORS, rate limits] --> App[Application<br/>Use cases, validation, ports]
+    App --> Dom[Domain<br/>Supplier, Service, SupplierMedia, rules]
+    Per[Persistence adapter<br/>EF Core] -. implements .-> App
+    Media[Media adapter<br/>AWS SDK for S3] -. implements .-> App
+    AI[AI adapter<br/>IChatClient] -. implements .-> App
+    Per --> Db[(SQL Server)]
+    Media --> S3[(S3 bucket)]
+    AI -.-> Llm[AI model]
+```
+
+### Uploading and viewing a photo or video
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant A as Supplier API
+    participant S as S3 bucket
+    participant D as SQL Server
+    B->>A: 1. POST /suppliers/{id}/media/uploads (name, type, size)
+    A->>A: check type, size limit, 20-file limit
+    A-->>B: mediaId + signed PUT URL (15 min)
+    B->>S: 2. PUT file (with progress)
+    B->>A: 3. POST /suppliers/{id}/media (mediaId)
+    A->>S: read size and first bytes
+    A->>A: confirm the real file type (mismatch: delete object, 400)
+    A->>D: save reference (S3 key, type, size, name)
+    A-->>B: 201 media
+    B->>A: GET /media/{id}
+    A-->>B: 302 to signed GET URL (1 hour)
+    B->>S: GET file (range requests for video)
 ```
 
 | Project | Responsibility |
 | --- | --- |
-| `Suppliers.Domain` | `Supplier` aggregate and `Service` entity, enums, business rules. No NuGet packages. |
-| `Suppliers.Application` | Use cases (create, get, list, extract), FluentValidation, DTOs, and the ports `ISupplierRepository`, `ISupplierQueries`, `ISupplierExtractionService`. |
-| `Suppliers.Infrastructure` | EF Core persistence in the `supplier` schema, migrations, seed data, and the AI adapter. Implements the Application ports. |
+| `Suppliers.Domain` | `Supplier` aggregate with its `Service` and `SupplierMedia` entities, enums, business rules. No NuGet packages. |
+| `Suppliers.Application` | Use cases (create, get, list, AI extract, media upload/confirm/delete/view), FluentValidation, DTOs, file-type detection, and the ports `ISupplierRepository`, `ISupplierQueries`, `IMediaStorage`, `ISupplierExtractionService`. |
+| `Suppliers.Infrastructure` | EF Core persistence in the `supplier` schema, migrations, seed data; the S3 media adapter (signed URLs, object checks); the AI adapter. Implements the Application ports. |
 | `Suppliers.Api` | Minimal-API endpoints, ProblemDetails error handling, OpenAPI and Scalar, health checks, CORS, rate limiting, logging. |
 
 ## Tech stack
 
-.NET 10 and ASP.NET Core minimal APIs · EF Core 10 on SQL Server 2022 · FluentValidation · Asp.Versioning · Scalar (API docs) · Serilog · Microsoft.Extensions.AI · xUnit, NSubstitute, Shouldly, Testcontainers · Docker Compose · GitHub Actions.
+.NET 10 and ASP.NET Core minimal APIs · EF Core 10 on SQL Server 2022 · S3 via the AWS SDK (Versity S3 Gateway locally) · FluentValidation · Asp.Versioning · Scalar (API docs) · Serilog · Microsoft.Extensions.AI · xUnit, NSubstitute, Shouldly, Testcontainers · Docker Compose · GitHub Actions.
 
 ## Quick start
 
