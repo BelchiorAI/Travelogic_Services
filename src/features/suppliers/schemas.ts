@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { CreateSupplierRequest } from "@/api/types";
+import type { CreateSupplierRequest, SupplierDraft } from "@/api/types";
 
 const supplierTypeEnum = z.enum([
   "Accommodation",
@@ -70,8 +70,8 @@ export const supplierFormSchema = z.object({
       "Enter a valid URL, starting with https://",
     ),
   addressLine: z.string().trim().max(250).optional(),
-  city: z.string().trim().min(1, "City is required").max(120),
-  country: z.string().trim().min(1, "Country is required").max(120),
+  city: z.string().trim().min(1, "City is required").max(100),
+  country: z.string().trim().min(1, "Country is required").max(100),
   services: z
     .array(serviceSchema)
     .min(1, "Add at least one service")
@@ -134,8 +134,11 @@ export function toCreateRequest(values: SupplierFormOutput): CreateSupplierReque
   };
 }
 
-/** Converts an AI draft back into form values. */
-export function draftToFormValues(draft: CreateSupplierRequest): SupplierFormValues {
+/**
+ * Converts an AI draft into form values. Selects need a value, so a missing type falls back to a
+ * default (the API sends a warning for it); a missing price stays empty so the form requires it.
+ */
+export function draftToFormValues(draft: SupplierDraft): SupplierFormValues {
   return {
     name: draft.name ?? "",
     type: draft.type ?? "Accommodation",
@@ -146,11 +149,11 @@ export function draftToFormValues(draft: CreateSupplierRequest): SupplierFormVal
     city: draft.city ?? "",
     country: draft.country ?? "South Africa",
     services:
-      draft.services?.length > 0
+      draft.services && draft.services.length > 0
         ? draft.services.map((service) => ({
             name: service.name ?? "",
             type: service.type ?? "Activity",
-            price: service.price ?? 0,
+            price: service.price ?? (undefined as unknown as number),
             currency: service.currency ?? "ZAR",
             pricingUnit: service.pricingUnit ?? "PerPerson",
             durationHours: service.durationMinutes
@@ -159,7 +162,7 @@ export function draftToFormValues(draft: CreateSupplierRequest): SupplierFormVal
             durationMinutes: service.durationMinutes
               ? service.durationMinutes % 60
               : undefined,
-            capacity: service.capacity,
+            capacity: service.capacity ?? undefined,
             description: service.description ?? "",
           }))
         : [{ ...emptyService }],

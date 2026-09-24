@@ -86,8 +86,16 @@ export function SupplierForm() {
     <FormProvider {...form}>
       <AiExtractPanel
         hasData={form.formState.isDirty}
-        onApplyDraft={(values) => {
+        onApplyDraft={(values, warnings) => {
           form.reset(values);
+          for (const warning of warnings) {
+            if (warning.field) {
+              form.setError(problemKeyToFieldPath(warning.field) as never, {
+                type: "ai",
+                message: warning.message,
+              });
+            }
+          }
           setAiFilled(true);
         }}
       />

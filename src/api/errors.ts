@@ -12,7 +12,7 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.title = title;
-    this.detail = problem?.detail;
+    this.detail = problem?.detail ?? undefined;
     this.errors = problem?.errors;
   }
 

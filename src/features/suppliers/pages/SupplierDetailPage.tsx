@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/formatters";
 import { useSupplier } from "../api/useSupplier";
 import { ServiceList } from "../components/ServiceList";
+import { SupplierMediaGallery } from "../components/SupplierMediaGallery";
 import { SupplierTypeBadge } from "../components/SupplierTypeBadge";
 
 const routeApi = getRouteApi("/suppliers/$id");
@@ -78,9 +79,13 @@ export function SupplierDetailPage() {
             </h2>
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
               <Detail icon={<Mail className="size-4" aria-hidden />} label="Email">
-                <a className="hover:underline" href={`mailto:${query.data.email}`}>
-                  {query.data.email}
-                </a>
+                {query.data.email ? (
+                  <a className="hover:underline" href={`mailto:${query.data.email}`}>
+                    {query.data.email}
+                  </a>
+                ) : (
+                  "—"
+                )}
               </Detail>
               <Detail icon={<Phone className="size-4" aria-hidden />} label="Phone">
                 {query.data.phone ?? "—"}
@@ -106,6 +111,8 @@ export function SupplierDetailPage() {
               </Detail>
             </dl>
           </section>
+
+          <SupplierMediaGallery supplierId={query.data.id} media={query.data.media} />
 
           <section className="mt-8">
             <h2 className="mb-4 text-lg font-semibold">

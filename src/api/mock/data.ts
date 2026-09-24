@@ -1,10 +1,13 @@
 import type { Supplier } from "../types";
 
+/** Mock records leave out the fields the UI never shows; the mock store fills them with null. */
+export type MockSupplier = Omit<Supplier, "description" | "contactName" | "media">;
+
 function iso(d: string) {
   return new Date(d).toISOString();
 }
 
-export const mockSuppliers: Supplier[] = [
+export const mockSuppliers: MockSupplier[] = [
   {
     id: "sup-1001",
     name: "Marula Ridge Safari Lodge",

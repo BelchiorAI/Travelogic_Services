@@ -3,15 +3,22 @@ import type {
   CreateSupplierRequest,
   ExtractSupplierResponse,
   FeatureFlags,
+  Media,
   PagedResult,
   Supplier,
   SupplierListParams,
   SupplierSummary,
 } from "../types";
+import { MEDIA_RULES } from "../types";
 import { mockSuppliers } from "./data";
 
 /** In-memory store so newly created suppliers persist for the session. */
-const store: Supplier[] = mockSuppliers.map((s) => ({ ...s }));
+const store: Supplier[] = mockSuppliers.map((s) => ({
+  description: null,
+  contactName: null,
+  media: [],
+  ...s,
+}));
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const latency = () => wait(300 + Math.random() * 400);
@@ -24,8 +31,10 @@ function toSummary(supplier: Supplier): SupplierSummary {
     city: supplier.city,
     country: supplier.country,
     email: supplier.email,
+    phone: supplier.phone,
     serviceCount: supplier.services.length,
     createdAt: supplier.createdAt,
+    coverImageUrl: supplier.media.find((m) => m.kind === "Image")?.url ?? null,
   };
 }
 
@@ -40,10 +49,9 @@ export async function mockGetSuppliers(
   let items = [...store].sort((a, b) => a.name.localeCompare(b.name));
 
   if (search) {
+    // Same fields as the real API: name, city and email.
     items = items.filter((s) =>
-      [s.name, s.city, s.country, s.email].some((field) =>
-        field.toLowerCase().includes(search),
-      ),
+      [s.name, s.city, s.email ?? ""].some((field) => field.toLowerCase().includes(search)),
     );
   }
   if (params.type) {
@@ -115,6 +123,9 @@ export async function mockCreateSupplier(
     id: `sup-${Math.floor(Math.random() * 90000 + 10000)}`,
     name: body.name,
     type: body.type,
+    description: null,
+    contactName: null,
+    media: [],
     email: body.email,
     phone: body.phone || null,
     website: body.website || null,
@@ -174,9 +185,11 @@ export async function mockExtractSupplier(
           description:
             "Thatched chalet sleeping two, includes all meals and two daily game activities.",
           type: "Accommodation",
-          price: 5850,
+          // Like the real API: values the text didn't state come back as null.
+          price: null,
           currency: "ZAR",
           pricingUnit: "PerPersonPerNight",
+          durationMinutes: null,
           capacity: 2,
         },
         {
@@ -202,7 +215,69 @@ export async function mockExtractSupplier(
       ],
     },
     warnings: [
-      "Rates in the source text were listed for the 2026 green season only — confirm the validity period before saving.",
+      { field: "Services[0].Price", message: "'Price' must not be empty." },
+      {
+        field: "",
+        message:
+          "Rates in the source text were listed for the 2026 green season only — confirm the validity period before saving.",
+      },
     ],
   };
+}
+
+function findSupplier(id: string): Supplier {
+  const supplier = store.find((s) => s.id === id);
+  if (!supplier) {
+    throw new ApiError(404, "Not found", { title: "Not found", status: 404, detail: "Supplier not found." });
+  }
+  return supplier;
+}
+
+/** Keeps the file in the browser (object URL) for the session, applying the same rules as the API. */
+export async function mockUploadSupplierMedia(
+  supplierId: string,
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<Media> {
+  for (const step of [0.25, 0.5, 0.75, 1]) {
+    await wait(150);
+    onProgress?.(step);
+  }
+  const supplier = findSupplier(supplierId);
+  const kind = file.type.startsWith("video/") ? "Video" : "Image";
+  const maxBytes = kind === "Video" ? MEDIA_RULES.maxVideoBytes : MEDIA_RULES.maxImageBytes;
+
+  let error: string | undefined;
+  if (!MEDIA_RULES.accept.split(",").includes(file.type)) {
+    error = "Unsupported file. Upload JPEG, PNG or WebP images and MP4 or WebM videos.";
+  } else if (file.size > maxBytes) {
+    error = `${kind} files can be at most ${maxBytes / (1024 * 1024)} MB.`;
+  } else if (supplier.media.length >= MEDIA_RULES.maxPerSupplier) {
+    error = `A supplier can have at most ${MEDIA_RULES.maxPerSupplier} photos and videos.`;
+  }
+  if (error) {
+    throw new ApiError(400, "One or more validation errors occurred.", {
+      title: "One or more validation errors occurred.",
+      status: 400,
+      errors: { File: [error] },
+    });
+  }
+
+  const media: Media = {
+    id: `media-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    kind,
+    fileName: file.name,
+    contentType: file.type,
+    sizeBytes: file.size,
+    url: URL.createObjectURL(file),
+    uploadedAt: new Date().toISOString(),
+  };
+  supplier.media.push(media);
+  return structuredClone(media);
+}
+
+export async function mockDeleteSupplierMedia(supplierId: string, mediaId: string): Promise<void> {
+  await latency();
+  const supplier = findSupplier(supplierId);
+  supplier.media = supplier.media.filter((m) => m.id !== mediaId);
 }

@@ -2,6 +2,7 @@ import { AlertTriangle, ChevronDown, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { ApiError } from "@/api/client";
+import type { ExtractionWarning } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +15,8 @@ const MAX_CHARS = 20000;
 
 interface AiExtractPanelProps {
   hasData: boolean;
-  onApplyDraft: (values: SupplierFormValues) => void;
+  /** Warnings with a field key are also passed on so the form can highlight those fields. */
+  onApplyDraft: (values: SupplierFormValues, warnings: ExtractionWarning[]) => void;
 }
 
 export function AiExtractPanel({ hasData, onApplyDraft }: AiExtractPanelProps) {
@@ -22,10 +24,28 @@ export function AiExtractPanel({ hasData, onApplyDraft }: AiExtractPanelProps) {
   const extract = useExtractSupplier();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<ExtractionWarning[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  if (!features?.aiExtraction) return null;
+  if (!features) return null;
+
+  // Stay visible when the server has no AI model configured, so people know the feature exists.
+  if (!features.aiExtraction) {
+    return (
+      <section className="flex items-center gap-3 rounded-2xl border border-dashed border-border bg-card p-5">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <Sparkles className="size-4" aria-hidden />
+        </span>
+        <span>
+          <span className="block font-semibold">Import with AI</span>
+          <span className="block text-sm text-muted-foreground">
+            Not switched on for this server yet. Once an AI key is added to the Supplier API, you
+            can paste a rate sheet or email here and have the form filled in for you.
+          </span>
+        </span>
+      </section>
+    );
+  }
 
   const handleExtract = async () => {
     setError(null);
@@ -34,7 +54,7 @@ export function AiExtractPanel({ hasData, onApplyDraft }: AiExtractPanelProps) {
     }
     try {
       const result = await extract.mutateAsync(text);
-      onApplyDraft(draftToFormValues(result.draft));
+      onApplyDraft(draftToFormValues(result.draft), result.warnings);
       setWarnings(result.warnings);
     } catch (err) {
       setWarnings([]);
@@ -109,8 +129,8 @@ export function AiExtractPanel({ hasData, onApplyDraft }: AiExtractPanelProps) {
             >
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
               <ul className="space-y-1">
-                {warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
+                {warnings.map((warning, index) => (
+                  <li key={`${warning.field}-${index}`}>{warning.message}</li>
                 ))}
               </ul>
             </div>
