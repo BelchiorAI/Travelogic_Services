@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Supplier Hub</title>
+  <!-- Tile in the Travelogic brand blue -->
+  <rect width="64" height="64" rx="14" fill="#2599d6"/>
+  <!-- Sun -->
+  <circle cx="46" cy="15" r="6" fill="#cfe7f5"/>
+  <!-- Acacia: flat-topped canopy, forked branches, trunk, on the horizon -->
+  <path d="M10 31 Q12 25 21 24.5 L41 24.5 Q50 25 52 31 Z" fill="#ffffff"/>
+  <path d="M31 38 L23 30.5 M31.5 37 L40 30.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  <path d="M29.5 48 L30.5 33 L32.5 33 L33.5 48 Z" fill="#ffffff"/>
+  <rect x="8" y="47" width="48" height="3" rx="1.5" fill="#ffffff"/>
+</svg>
