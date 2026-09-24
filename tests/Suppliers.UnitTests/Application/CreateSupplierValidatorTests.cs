@@ -116,6 +116,20 @@ public class CreateSupplierValidatorTests
     }
 
     [Fact]
+    public void Missing_types_price_and_pricing_unit_are_reported_instead_of_defaulting()
+    {
+        var request = ValidRequest() with
+        {
+            Type = null,
+            Services = [ValidService() with { Type = null, Price = null, PricingUnit = null }],
+        };
+
+        var keys = _validator.Validate(request).Errors.Select(e => e.PropertyName).ToList();
+
+        keys.ShouldBe(["Type", "Services[0].Type", "Services[0].Price", "Services[0].PricingUnit"], ignoreOrder: true);
+    }
+
+    [Fact]
     public void Non_positive_duration_and_capacity_are_reported()
     {
         var request = ValidRequest() with { Services = [ValidService() with { DurationMinutes = 0, Capacity = -1 }] };

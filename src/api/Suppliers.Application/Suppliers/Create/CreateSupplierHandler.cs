@@ -20,7 +20,7 @@ public sealed class CreateSupplierHandler(
 
         var supplier = Supplier.Create(
             request.Name,
-            request.Type,
+            request.Type!.Value,
             request.City,
             request.Country,
             timeProvider.GetUtcNow(),
@@ -35,10 +35,10 @@ public sealed class CreateSupplierHandler(
         {
             supplier.AddService(
                 service.Name,
-                service.Type,
-                service.Price,
+                service.Type!.Value,
+                service.Price!.Value,
                 service.Currency,
-                service.PricingUnit,
+                service.PricingUnit!.Value,
                 service.Description,
                 service.DurationMinutes,
                 service.Capacity);

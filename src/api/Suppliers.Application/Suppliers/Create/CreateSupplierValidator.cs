@@ -8,7 +8,7 @@ public sealed class CreateSupplierValidator : AbstractValidator<CreateSupplierRe
     public CreateSupplierValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(SupplierLimits.NameMaxLength);
-        RuleFor(x => x.Type).IsInEnum();
+        RuleFor(x => x.Type).NotNull().IsInEnum();
         RuleFor(x => x.City).NotEmpty().MaximumLength(SupplierLimits.CityMaxLength);
         RuleFor(x => x.Country).NotEmpty().MaximumLength(SupplierLimits.CountryMaxLength);
         RuleFor(x => x.Description).MaximumLength(SupplierLimits.DescriptionMaxLength);
@@ -26,6 +26,7 @@ public sealed class CreateSupplierValidator : AbstractValidator<CreateSupplierRe
             .Must(BeAnHttpUrl).WithMessage("'{PropertyName}' must be a valid http or https URL.")
             .When(x => !string.IsNullOrWhiteSpace(x.Website));
 
+        // Null only happens with an explicit "services": null; RuleForEach below needs a list.
         RuleFor(x => x.Services)
             .NotNull()
             .Must(s => s.Count <= SupplierLimits.MaxServicesPerSupplier)
@@ -44,13 +45,13 @@ public sealed class CreateServiceValidator : AbstractValidator<CreateServiceRequ
     public CreateServiceValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(SupplierLimits.NameMaxLength);
-        RuleFor(x => x.Type).IsInEnum();
+        RuleFor(x => x.Type).NotNull().IsInEnum();
         RuleFor(x => x.Description).MaximumLength(SupplierLimits.DescriptionMaxLength);
-        RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.Price).NotNull().GreaterThanOrEqualTo(0);
         RuleFor(x => x.Currency)
             .NotEmpty()
             .Matches("^[A-Z]{3}$").WithMessage("'{PropertyName}' must be a 3-letter uppercase ISO code, e.g. ZAR.");
-        RuleFor(x => x.PricingUnit).IsInEnum();
+        RuleFor(x => x.PricingUnit).NotNull().IsInEnum();
         RuleFor(x => x.DurationMinutes).GreaterThan(0).When(x => x.DurationMinutes.HasValue);
         RuleFor(x => x.Capacity).GreaterThan(0).When(x => x.Capacity.HasValue);
     }
