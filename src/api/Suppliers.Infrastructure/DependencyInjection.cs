@@ -23,6 +23,7 @@ public static class DependencyInjection
             .UseAsyncSeeding((context, _, cancellationToken) => SeedData.SeedAsync(context, cancellationToken)));
 
         services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<ISupplierQueries, SupplierQueries>();
 
         return services;
     }

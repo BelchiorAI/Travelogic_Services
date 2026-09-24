@@ -1,0 +1,23 @@
+using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Suppliers.Application.Suppliers.Create;
+using Suppliers.Application.Suppliers.GetById;
+using Suppliers.Application.Suppliers.List;
+
+namespace Suppliers.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
+
+        services.AddScoped<CreateSupplierHandler>();
+        services.AddScoped<GetSupplierByIdHandler>();
+        services.AddScoped<ListSuppliersHandler>();
+
+        return services;
+    }
+}
