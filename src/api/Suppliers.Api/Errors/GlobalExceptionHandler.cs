@@ -30,6 +30,12 @@ internal sealed class GlobalExceptionHandler(IProblemDetailsService problemDetai
                 Title = "Conflict",
                 Detail = conflict.Message,
             },
+            NotFoundException notFound => new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Not found",
+                Detail = notFound.Message,
+            },
             FeatureDisabledException disabled => new ProblemDetails
             {
                 Status = StatusCodes.Status503ServiceUnavailable,

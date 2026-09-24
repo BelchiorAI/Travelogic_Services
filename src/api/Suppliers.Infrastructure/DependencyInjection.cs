@@ -7,6 +7,7 @@ using OpenAI;
 using OpenAI.Chat;
 using Suppliers.Application.Abstractions;
 using Suppliers.Infrastructure.Ai;
+using Suppliers.Infrastructure.Media;
 using Suppliers.Infrastructure.Persistence;
 
 namespace Suppliers.Infrastructure;
@@ -29,6 +30,9 @@ public static class DependencyInjection
 
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ISupplierQueries, SupplierQueries>();
+
+        services.Configure<MediaStorageOptions>(configuration.GetSection(MediaStorageOptions.SectionName));
+        services.AddSingleton<IMediaStorage, LocalMediaStorage>();
 
         services.AddSupplierExtraction(configuration);
 

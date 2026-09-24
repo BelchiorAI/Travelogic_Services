@@ -14,6 +14,8 @@ internal sealed class SupplierRepository(SuppliersDbContext db) : ISupplierRepos
     public Task<Supplier?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         db.Suppliers
             .Include(s => s.Services)
+            .Include(s => s.Media)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
     public Task<bool> ExistsAsync(string name, string city, CancellationToken cancellationToken)

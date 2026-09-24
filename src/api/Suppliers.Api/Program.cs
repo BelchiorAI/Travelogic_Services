@@ -96,6 +96,7 @@ var v1 = app.NewVersionedApi("Suppliers")
 
 v1.MapSupplierEndpoints();
 v1.MapFeatureEndpoints();
+v1.MapMediaEndpoints();
 
 app.Run();
 

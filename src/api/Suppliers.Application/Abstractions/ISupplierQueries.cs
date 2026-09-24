@@ -9,4 +9,6 @@ public interface ISupplierQueries
     Task<SupplierDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
     Task<PagedResult<SupplierSummaryDto>> ListAsync(ListSuppliersQuery query, CancellationToken cancellationToken);
+
+    Task<MediaFileInfo?> GetMediaFileInfoAsync(Guid mediaId, CancellationToken cancellationToken);
 }

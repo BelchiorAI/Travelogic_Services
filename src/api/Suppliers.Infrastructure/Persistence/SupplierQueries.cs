@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Suppliers.Application.Abstractions;
 using Suppliers.Application.Suppliers.Common;
 using Suppliers.Application.Suppliers.List;
+using Suppliers.Domain.Suppliers;
 
 namespace Suppliers.Infrastructure.Persistence;
 
@@ -38,7 +39,19 @@ internal sealed class SupplierQueries(SuppliersDbContext db) : ISupplierQueries
                         sv.DurationMinutes,
                         sv.Capacity,
                         sv.IsActive))
+                    .ToList(),
+                s.Media
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => new MediaDto(
+                        m.Id,
+                        m.Kind,
+                        m.FileName,
+                        m.ContentType,
+                        m.SizeBytes,
+                        MediaUrls.For(m.Id),
+                        m.UploadedAt))
                     .ToList()))
+            .AsSplitQuery()
             .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<PagedResult<SupplierSummaryDto>> ListAsync(ListSuppliersQuery query, CancellationToken cancellationToken)
@@ -70,9 +83,24 @@ internal sealed class SupplierQueries(SuppliersDbContext db) : ISupplierQueries
                 s.Email,
                 s.Phone,
                 s.Services.Count,
-                s.CreatedAt))
+                s.CreatedAt,
+                // The oldest photo is the cover image; SQL picks its id, C# builds the URL.
+                CoverUrl(s.Media
+                    .Where(m => m.Kind == MediaKind.Image)
+                    .OrderBy(m => m.UploadedAt)
+                    .Select(m => (Guid?)m.Id)
+                    .FirstOrDefault())))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<SupplierSummaryDto>(items, query.Page, query.PageSize, totalCount);
     }
+
+    private static string? CoverUrl(Guid? mediaId) => mediaId is { } id ? MediaUrls.For(id) : null;
+
+    public Task<MediaFileInfo?> GetMediaFileInfoAsync(Guid mediaId, CancellationToken cancellationToken) =>
+        db.Set<SupplierMedia>()
+            .AsNoTracking()
+            .Where(m => m.Id == mediaId)
+            .Select(m => new MediaFileInfo(m.StorageKey, m.ContentType, m.UploadedAt))
+            .FirstOrDefaultAsync(cancellationToken);
 }

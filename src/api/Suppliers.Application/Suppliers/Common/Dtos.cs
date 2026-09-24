@@ -16,7 +16,8 @@ public sealed record SupplierDto(
     string Country,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
-    IReadOnlyList<ServiceDto> Services);
+    IReadOnlyList<ServiceDto> Services,
+    IReadOnlyList<MediaDto> Media);
 
 public sealed record ServiceDto(
     Guid Id,
@@ -39,7 +40,26 @@ public sealed record SupplierSummaryDto(
     string? Email,
     string? Phone,
     int ServiceCount,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? CoverImageUrl);
+
+/// <param name="Url">Relative to the API's base address, e.g. "/api/v1/media/{id}".</param>
+public sealed record MediaDto(
+    Guid Id,
+    MediaKind Kind,
+    string FileName,
+    string ContentType,
+    long SizeBytes,
+    string Url,
+    DateTimeOffset UploadedAt);
+
+/// <summary>Where a media file is stored, for serving it. Never sent to clients.</summary>
+public sealed record MediaFileInfo(string StorageKey, string ContentType, DateTimeOffset UploadedAt);
+
+public static class MediaUrls
+{
+    public static string For(Guid mediaId) => $"/api/v1/media/{mediaId}";
+}
 
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount)
 {

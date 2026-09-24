@@ -19,7 +19,17 @@ public static class Mappings
         supplier.Country,
         supplier.CreatedAt,
         supplier.UpdatedAt,
-        supplier.Services.Select(ToDto).ToList());
+        supplier.Services.Select(ToDto).ToList(),
+        supplier.Media.OrderBy(m => m.UploadedAt).Select(ToDto).ToList());
+
+    public static MediaDto ToDto(this SupplierMedia media) => new(
+        media.Id,
+        media.Kind,
+        media.FileName,
+        media.ContentType,
+        media.SizeBytes,
+        MediaUrls.For(media.Id),
+        media.UploadedAt);
 
     public static ServiceDto ToDto(this Service service) => new(
         service.Id,

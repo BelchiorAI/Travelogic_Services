@@ -15,6 +15,7 @@ namespace Suppliers.IntegrationTests.Infrastructure;
 public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly MsSqlContainer _sqlServer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
+    private readonly string _mediaRoot = Path.Combine(Path.GetTempPath(), $"suppliers-tests-media-{Guid.NewGuid():N}");
 
     public async Task InitializeAsync()
     {
@@ -28,6 +29,8 @@ public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsync
     {
         await base.DisposeAsync();
         await _sqlServer.DisposeAsync();
+        if (Directory.Exists(_mediaRoot))
+            Directory.Delete(_mediaRoot, recursive: true);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -40,6 +43,7 @@ public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsync
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:SuppliersDb", connectionString);
         builder.UseSetting("Database:ApplyMigrationsOnStartup", "true");
+        builder.UseSetting("Media:RootPath", _mediaRoot);
 
         // AI extraction is enabled, but talks to a fake model so no test ever calls a real one.
         builder.UseSetting("Ai:Enabled", "true");

@@ -6,6 +6,7 @@ namespace Suppliers.Domain.Suppliers;
 public sealed class Supplier
 {
     private readonly List<Service> _services = [];
+    private readonly List<SupplierMedia> _media = [];
 
     public Guid Id { get; private set; }
     public string Name { get; private set; } = null!;
@@ -23,6 +24,7 @@ public sealed class Supplier
     public byte[] RowVersion { get; private set; } = [];
 
     public IReadOnlyCollection<Service> Services => _services.AsReadOnly();
+    public IReadOnlyCollection<SupplierMedia> Media => _media.AsReadOnly();
 
     // For EF Core.
     private Supplier() { }
@@ -74,5 +76,36 @@ public sealed class Supplier
         var service = new Service(Id, name, type, price, currency, pricingUnit, description, durationMinutes, capacity);
         _services.Add(service);
         return service;
+    }
+
+    /// <param name="mediaId">Chosen by the caller, because the file is stored under a key derived from it before this call.</param>
+    public SupplierMedia AddMedia(
+        Guid mediaId,
+        MediaKind kind,
+        string fileName,
+        string contentType,
+        long sizeBytes,
+        string storageKey,
+        DateTimeOffset now)
+    {
+        if (_media.Count >= SupplierLimits.MaxMediaPerSupplier)
+            throw new DomainException($"A supplier can have at most {SupplierLimits.MaxMediaPerSupplier} photos and videos.");
+
+        var media = new SupplierMedia(mediaId, Id, kind, fileName, contentType, sizeBytes, storageKey, now);
+        _media.Add(media);
+        UpdatedAt = now;
+        return media;
+    }
+
+    /// <returns>The removed media, or <c>null</c> when this supplier has no media with that id.</returns>
+    public SupplierMedia? RemoveMedia(Guid mediaId, DateTimeOffset now)
+    {
+        var media = _media.FirstOrDefault(m => m.Id == mediaId);
+        if (media is null)
+            return null;
+
+        _media.Remove(media);
+        UpdatedAt = now;
+        return media;
     }
 }

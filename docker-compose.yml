@@ -38,6 +38,8 @@ services:
       Ai__Endpoint: "${AI_ENDPOINT:-}"
     ports:
       - "5000:8080"
+    volumes:
+      - media-data:/app/media
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -47,3 +49,4 @@ services:
 
 volumes:
   sqlserver-data:
+  media-data:

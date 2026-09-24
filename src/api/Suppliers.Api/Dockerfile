@@ -18,6 +18,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# Uploaded photos and videos (a volume in docker-compose.yml), owned by the non-root user that writes them.
+RUN mkdir -p /app/media && chown $APP_UID /app/media
+
 # The aspnet image ships a non-root "app" user; port 8080 needs no root privileges.
 USER $APP_UID
 ENV ASPNETCORE_HTTP_PORTS=8080

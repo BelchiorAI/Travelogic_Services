@@ -37,5 +37,14 @@ internal sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Navigation(s => s.Services)
             .HasField("_services")
             .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.HasMany(s => s.Media)
+            .WithOne()
+            .HasForeignKey(m => m.SupplierId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(s => s.Media)
+            .HasField("_media")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

@@ -5,6 +5,7 @@ using Suppliers.Application.Suppliers.Create;
 using Suppliers.Application.Suppliers.Extract;
 using Suppliers.Application.Suppliers.GetById;
 using Suppliers.Application.Suppliers.List;
+using Suppliers.Application.Suppliers.Media;
 
 namespace Suppliers.Application;
 
@@ -19,6 +20,9 @@ public static class DependencyInjection
         services.AddScoped<GetSupplierByIdHandler>();
         services.AddScoped<ListSuppliersHandler>();
         services.AddScoped<ExtractSupplierDraftHandler>();
+        services.AddScoped<UploadSupplierMediaHandler>();
+        services.AddScoped<DeleteSupplierMediaHandler>();
+        services.AddScoped<GetMediaFileHandler>();
 
         return services;
     }
