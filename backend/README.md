@@ -37,8 +37,8 @@ flowchart TD
 You need [Docker](https://www.docker.com/products/docker-desktop/) running.
 
 ```bash
-git clone <repository-url>
-cd supplier-management
+git clone git@github.com:BelchiorAI/Travelogic_Services.git
+cd Travelogic_Services/backend
 docker compose up --build
 ```
 
@@ -64,7 +64,7 @@ dotnet run --project src/api/Suppliers.Api
 
 The API listens on http://localhost:5000 and, in the Development environment, applies migrations and seeds on startup. The development connection string in `appsettings.Development.json` matches the local SQL Server container's throwaway password. Override any setting with environment variables, for example `ConnectionStrings__SuppliersDb`, or with `dotnet user-secrets` for local secrets.
 
-The frontend runs separately: in its repository, copy `.env.example` to `.env.local` (it sets `VITE_API_BASE_URL=http://localhost:5000` and `VITE_USE_MOCKS=false`) and run `npm run dev`. In Development and in the compose stack, CORS allows any `http://localhost` port, because dev servers move to the next free port. Other environments allow only the origins listed in `Cors:AllowedOrigins`.
+The frontend runs separately: in `../frontend`, copy `.env.example` to `.env.local` (it sets `VITE_API_BASE_URL=http://localhost:5000` and `VITE_USE_MOCKS=false`) and run `npm run dev`. In Development and in the compose stack, CORS allows any `http://localhost` port, because dev servers move to the next free port. Other environments allow only the origins listed in `Cors:AllowedOrigins`.
 
 ## API
 
@@ -152,7 +152,7 @@ dotnet test
 - **Unit tests** (`tests/Suppliers.UnitTests`): domain rules, validators and handlers, with NSubstitute fakes.
 - **Integration tests** (`tests/Suppliers.IntegrationTests`): the real API against a real SQL Server, covering creation and retrieval, the `Services[0].Price` error format, 404 and 409, search, filtering and paging, health, OpenAPI, and AI extraction with a fake `IChatClient`, so tests never call a real model.
 
-CI (`.github/workflows/ci.yml`) runs the build and all tests, and builds the Docker image, on every push.
+CI (`.github/workflows/ci.yml` at the repository root) runs the build and all tests, and builds the Docker image, on every push.
 
 ## Design decisions and trade-offs
 
