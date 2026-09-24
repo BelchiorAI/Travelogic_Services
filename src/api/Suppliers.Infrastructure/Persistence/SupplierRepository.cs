@@ -1,5 +1,7 @@
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Suppliers.Application.Abstractions;
+using Suppliers.Application.Common;
 using Suppliers.Domain.Suppliers;
 
 namespace Suppliers.Infrastructure.Persistence;
@@ -22,6 +24,23 @@ internal sealed class SupplierRepository(SuppliersDbContext db) : ISupplierRepos
         return db.Suppliers.AnyAsync(s => s.Name == trimmedName && s.City == trimmedCity, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken) =>
-        db.SaveChangesAsync(cancellationToken);
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConflictException("The supplier was changed by someone else. Reload it and try again.", ex);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: UniqueIndexViolation or UniqueConstraintViolation })
+        {
+            // Another request inserted the same name and city between our ExistsAsync check and this save.
+            throw new ConflictException("A supplier with the same name already exists in this city.", ex);
+        }
+    }
+
+    private const int UniqueIndexViolation = 2601;
+    private const int UniqueConstraintViolation = 2627;
 }
