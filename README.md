@@ -42,6 +42,8 @@ cd supplier-management
 docker compose up --build
 ```
 
+On Windows, if `git clone` reports "Filename too long", clone into a shorter folder or run `git config --global core.longpaths true` first.
+
 When `suppliers-api` has started:
 
 - API: http://localhost:5000
