@@ -29,6 +29,8 @@ services:
       Database__ApplyMigrationsOnStartup: "true"
       Cors__AllowedOrigins__0: "http://localhost:5173"
       Cors__AllowedOrigins__1: "http://localhost:8080"
+      # This stack is for local use, where the frontend dev server may pick any free port.
+      Cors__AllowLocalhost: "true"
       # Optional AI extraction: set these in a .env file (see .env.example). Off when no key is given.
       Ai__Enabled: "${AI_ENABLED:-false}"
       Ai__Model: "${AI_MODEL:-}"

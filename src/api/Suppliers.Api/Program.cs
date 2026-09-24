@@ -54,8 +54,12 @@ builder.Services.AddApiRateLimiting();
 
 const string FrontendCorsPolicy = "Frontend";
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+// Local development only: dev servers move to the next free port, so allow any localhost port.
+var allowLocalhost = builder.Configuration.GetValue<bool>("Cors:AllowLocalhost");
 builder.Services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy => policy
-    .WithOrigins(allowedOrigins)
+    .SetIsOriginAllowed(origin =>
+        allowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase)
+        || (allowLocalhost && Uri.TryCreate(origin, UriKind.Absolute, out var uri) && uri.IsLoopback))
     .AllowAnyHeader()
     .AllowAnyMethod()
     .WithExposedHeaders("Location")));

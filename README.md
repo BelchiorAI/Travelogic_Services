@@ -64,7 +64,7 @@ dotnet run --project src/api/Suppliers.Api
 
 The API listens on http://localhost:5000 and, in the Development environment, applies migrations and seeds on startup. The development connection string in `appsettings.Development.json` matches the local SQL Server container's throwaway password. Override any setting with environment variables, for example `ConnectionStrings__SuppliersDb`, or with `dotnet user-secrets` for local secrets.
 
-The frontend runs separately. Its dev server origins `http://localhost:5173` and `http://localhost:8080` are allowed by CORS; set `VITE_API_BASE_URL=http://localhost:5000` in the frontend.
+The frontend runs separately: in its repository, copy `.env.example` to `.env.local` (it sets `VITE_API_BASE_URL=http://localhost:5000` and `VITE_USE_MOCKS=false`) and run `npm run dev`. In Development and in the compose stack, CORS allows any `http://localhost` port, because dev servers move to the next free port. Other environments allow only the origins listed in `Cors:AllowedOrigins`.
 
 ## API
 
