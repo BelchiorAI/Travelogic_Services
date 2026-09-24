@@ -15,7 +15,7 @@ public sealed class Supplier
     public string? Email { get; private set; }
     public string? Phone { get; private set; }
     public string? Website { get; private set; }
-    public string? Address { get; private set; }
+    public string? AddressLine { get; private set; }
     public string City { get; private set; } = null!;
     public string Country { get; private set; } = null!;
     public DateTimeOffset CreatedAt { get; private set; }
@@ -38,7 +38,7 @@ public sealed class Supplier
         string? email = null,
         string? phone = null,
         string? website = null,
-        string? address = null)
+        string? addressLine = null)
     {
         return new Supplier
         {
@@ -52,7 +52,7 @@ public sealed class Supplier
             Email = Guard.Optional(email, "Email", SupplierLimits.ContactMaxLength),
             Phone = Guard.Optional(phone, "Phone", SupplierLimits.PhoneMaxLength),
             Website = Guard.Optional(website, "Website", SupplierLimits.WebsiteMaxLength),
-            Address = Guard.Optional(address, "Address", SupplierLimits.AddressMaxLength),
+            AddressLine = Guard.Optional(addressLine, "Address line", SupplierLimits.AddressLineMaxLength),
             CreatedAt = now,
             UpdatedAt = now,
         };

@@ -29,7 +29,7 @@ public sealed class CreateSupplierHandler(
             request.Email,
             request.Phone,
             request.Website,
-            request.Address);
+            request.AddressLine);
 
         foreach (var service in request.Services)
         {

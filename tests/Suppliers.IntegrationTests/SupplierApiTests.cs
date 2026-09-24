@@ -33,16 +33,18 @@ public class SupplierApiTests(SuppliersApiFactory factory) : ApiTestBase(factory
     }
 
     [Fact]
-    public async Task Enums_and_properties_are_serialised_as_camelCase_strings()
+    public async Task Json_shape_matches_the_frontend_contract()
     {
-        var created = await CreateAsync(Supplier());
+        var created = await CreateAsync(Supplier() with { AddressLine = "R536, Sabie Road" });
 
         using var json = JsonDocument.Parse(await Client.GetStringAsync($"{SuppliersUrl}/{created.Id}"));
 
         json.RootElement.GetProperty("type").GetString().ShouldBe("Accommodation");
+        json.RootElement.GetProperty("addressLine").GetString().ShouldBe("R536, Sabie Road");
         var service = json.RootElement.GetProperty("services")[0];
         service.GetProperty("pricingUnit").GetString().ShouldBe("PerPerson");
         service.GetProperty("durationMinutes").GetInt32().ShouldBe(180);
+        service.GetProperty("isActive").GetBoolean().ShouldBeTrue();
     }
 
     [Fact]

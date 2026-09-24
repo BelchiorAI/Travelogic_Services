@@ -20,7 +20,7 @@ internal sealed class SupplierQueries(SuppliersDbContext db) : ISupplierQueries
                 s.Email,
                 s.Phone,
                 s.Website,
-                s.Address,
+                s.AddressLine,
                 s.City,
                 s.Country,
                 s.CreatedAt,
@@ -36,7 +36,8 @@ internal sealed class SupplierQueries(SuppliersDbContext db) : ISupplierQueries
                         sv.Currency,
                         sv.PricingUnit,
                         sv.DurationMinutes,
-                        sv.Capacity))
+                        sv.Capacity,
+                        sv.IsActive))
                     .ToList()))
             .FirstOrDefaultAsync(cancellationToken);
 

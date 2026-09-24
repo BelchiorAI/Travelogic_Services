@@ -14,7 +14,7 @@ public static class Mappings
         supplier.Email,
         supplier.Phone,
         supplier.Website,
-        supplier.Address,
+        supplier.AddressLine,
         supplier.City,
         supplier.Country,
         supplier.CreatedAt,
@@ -30,5 +30,6 @@ public static class Mappings
         service.Currency,
         service.PricingUnit,
         service.DurationMinutes,
-        service.Capacity);
+        service.Capacity,
+        service.IsActive);
 }

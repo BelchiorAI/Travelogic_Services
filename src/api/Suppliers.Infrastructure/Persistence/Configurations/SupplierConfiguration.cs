@@ -20,7 +20,7 @@ internal sealed class SupplierConfiguration : IEntityTypeConfiguration<Supplier>
         builder.Property(s => s.Email).HasMaxLength(SupplierLimits.ContactMaxLength);
         builder.Property(s => s.Phone).HasMaxLength(SupplierLimits.PhoneMaxLength);
         builder.Property(s => s.Website).HasMaxLength(SupplierLimits.WebsiteMaxLength);
-        builder.Property(s => s.Address).HasMaxLength(SupplierLimits.AddressMaxLength);
+        builder.Property(s => s.AddressLine).HasMaxLength(SupplierLimits.AddressLineMaxLength);
         builder.Property(s => s.City).HasMaxLength(SupplierLimits.CityMaxLength).IsRequired();
         builder.Property(s => s.Country).HasMaxLength(SupplierLimits.CountryMaxLength).IsRequired();
         builder.Property(s => s.RowVersion).IsRowVersion();

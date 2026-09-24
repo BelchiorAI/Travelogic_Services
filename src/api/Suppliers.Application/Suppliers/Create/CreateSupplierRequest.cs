@@ -14,7 +14,7 @@ public sealed record CreateSupplierRequest
     public string? Email { get; init; }
     public string? Phone { get; init; }
     public string? Website { get; init; }
-    public string? Address { get; init; }
+    public string? AddressLine { get; init; }
     public string City { get; init; } = string.Empty;
     public string Country { get; init; } = string.Empty;
     public IReadOnlyList<CreateServiceRequest> Services { get; init; } = [];

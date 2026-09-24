@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Suppliers.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using Suppliers.Infrastructure.Persistence;
 namespace Suppliers.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SuppliersDbContext))]
-    partial class SuppliersDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924105805_AlignWithFrontend")]
+    partial class AlignWithFrontend
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -32,7 +32,7 @@ internal static class SeedData
             "Marula Bush Lodge", SupplierType.Accommodation, "Hazyview", "South Africa", now,
             description: "Private game lodge on the western boundary of the Kruger National Park.",
             contactName: "Thandi Nkosi", email: "reservations@marulabush.example", phone: "+27 13 555 0101",
-            website: "https://marulabush.example", address: "R536, Sabie Road");
+            website: "https://marulabush.example", addressLine: "R536, Sabie Road");
         lodge.AddService("Luxury Safari Suite", ServiceType.Accommodation, 6800m, "ZAR", PricingUnit.PerPersonPerNight,
             description: "Full board, includes two game drives per day.", capacity: 2);
         lodge.AddService("Sunrise Game Drive", ServiceType.Activity, 950m, "ZAR", PricingUnit.PerPerson,
@@ -45,7 +45,7 @@ internal static class SeedData
             "Harbourview Waterfront Hotel", SupplierType.Accommodation, "Cape Town", "South Africa", now,
             description: "Four-star hotel at the V&A Waterfront with views of Table Mountain.",
             contactName: "Pieter van der Merwe", email: "groups@harbourview.example", phone: "+27 21 555 0202",
-            address: "12 Dock Road, V&A Waterfront");
+            addressLine: "12 Dock Road, V&A Waterfront");
         hotel.AddService("Deluxe Mountain-View Room", ServiceType.Accommodation, 3200m, "ZAR", PricingUnit.PerRoomPerNight,
             description: "Bed and breakfast, sleeps two.", capacity: 2);
         hotel.AddService("Family Suite", ServiceType.Accommodation, 5400m, "ZAR", PricingUnit.PerRoomPerNight,

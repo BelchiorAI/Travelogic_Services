@@ -16,6 +16,9 @@ public sealed class Service
     public int? DurationMinutes { get; private set; }
     public int? Capacity { get; private set; }
 
+    /// <summary>New services are bookable; deactivating keeps history instead of deleting.</summary>
+    public bool IsActive { get; private set; }
+
     // For EF Core.
     private Service() { }
 
@@ -43,6 +46,7 @@ public sealed class Service
         PricingUnit = Guard.Defined(pricingUnit, "Pricing unit");
         DurationMinutes = Guard.PositiveOrNull(durationMinutes, "Duration");
         Capacity = Guard.PositiveOrNull(capacity, "Capacity");
+        IsActive = true;
     }
 
     private static string ParseCurrency(string? currency)

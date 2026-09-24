@@ -14,7 +14,7 @@ public sealed class CreateSupplierValidator : AbstractValidator<CreateSupplierRe
         RuleFor(x => x.Description).MaximumLength(SupplierLimits.DescriptionMaxLength);
         RuleFor(x => x.ContactName).MaximumLength(SupplierLimits.ContactMaxLength);
         RuleFor(x => x.Phone).MaximumLength(SupplierLimits.PhoneMaxLength);
-        RuleFor(x => x.Address).MaximumLength(SupplierLimits.AddressMaxLength);
+        RuleFor(x => x.AddressLine).MaximumLength(SupplierLimits.AddressLineMaxLength);
 
         RuleFor(x => x.Email)
             .MaximumLength(SupplierLimits.ContactMaxLength)

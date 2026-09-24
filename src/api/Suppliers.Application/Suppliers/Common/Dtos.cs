@@ -11,7 +11,7 @@ public sealed record SupplierDto(
     string? Email,
     string? Phone,
     string? Website,
-    string? Address,
+    string? AddressLine,
     string City,
     string Country,
     DateTimeOffset CreatedAt,
@@ -27,7 +27,8 @@ public sealed record ServiceDto(
     string Currency,
     PricingUnit PricingUnit,
     int? DurationMinutes,
-    int? Capacity);
+    int? Capacity,
+    bool IsActive);
 
 public sealed record SupplierSummaryDto(
     Guid Id,
