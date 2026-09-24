@@ -20,7 +20,11 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // Numbers must be JSON numbers, so the OpenAPI contract (and generated client types) say "number", not "number | string".
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 
 // Throw on unreadable requests in every environment, so GlobalExceptionHandler can return ProblemDetails.
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);

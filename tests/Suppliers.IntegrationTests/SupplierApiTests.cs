@@ -73,6 +73,19 @@ public class SupplierApiTests(SuppliersApiFactory factory) : ApiTestBase(factory
     }
 
     [Fact]
+    public async Task Post_with_price_as_a_string_returns_400_problem()
+    {
+        const string body = """
+            { "name": "X", "type": "Activity", "city": "Knysna", "country": "South Africa",
+              "services": [ { "name": "Kayak", "type": "Activity", "price": "450", "currency": "ZAR", "pricingUnit": "PerPerson" } ] }
+            """;
+
+        var response = await Client.PostAsync(SuppliersUrl, new StringContent(body, Encoding.UTF8, "application/json"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Post_duplicate_name_and_city_returns_409()
     {
         await CreateAsync(Supplier());

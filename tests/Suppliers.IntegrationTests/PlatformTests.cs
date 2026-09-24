@@ -26,4 +26,15 @@ public class PlatformTests(SuppliersApiFactory factory) : ApiTestBase(factory)
         paths.TryGetProperty("/api/v1/suppliers", out _).ShouldBeTrue(paths.ToString());
         paths.TryGetProperty("/api/v1/suppliers/{id}", out _).ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task OpenApi_document_types_price_as_a_plain_number_for_generated_clients()
+    {
+        using var json = JsonDocument.Parse(await Client.GetStringAsync("/openapi/v1.json"));
+
+        var price = json.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("ServiceDto").GetProperty("properties").GetProperty("price");
+
+        price.GetProperty("type").GetString().ShouldBe("number");
+    }
 }
