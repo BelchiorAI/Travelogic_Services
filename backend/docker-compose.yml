@@ -1,0 +1,76 @@
+# One command runs the whole stack:  docker compose up --build
+# API: http://localhost:5000  (docs at /scalar/v1, health at /health/ready)
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: suppliers-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Suppliers_Dev_Passw0rd!}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  s3:
+    # Local S3-compatible object store (Versity S3 Gateway, files on a volume). Swap for AWS S3 in production.
+    image: versity/versitygw:latest
+    container_name: suppliers-s3
+    command: ["--port", ":7070", "--health", "/health", "--cors-allow-origin", "*", "posix", "/data"]
+    environment:
+      ROOT_ACCESS_KEY_ID: "${S3_ACCESS_KEY:-s3-dev}"
+      ROOT_SECRET_ACCESS_KEY: "${S3_SECRET_KEY:-s3-dev-secret}"
+    ports:
+      - "9000:7070" # S3 API: browsers upload and download here
+    volumes:
+      - s3-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:7070/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: src/api/Suppliers.Api/Dockerfile
+    container_name: suppliers-api
+    environment:
+      ConnectionStrings__SuppliersDb: "Server=sqlserver,1433;Database=SuppliersDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Suppliers_Dev_Passw0rd!};TrustServerCertificate=True"
+      Database__ApplyMigrationsOnStartup: "true"
+      Cors__AllowedOrigins__0: "http://localhost:5173"
+      Cors__AllowedOrigins__1: "http://localhost:8080"
+      # This stack is for local use, where the frontend dev server may pick any free port.
+      Cors__AllowLocalhost: "true"
+      # Optional AI extraction: set these in a .env file (see .env.example). Off when no key is given.
+      Ai__Enabled: "${AI_ENABLED:-false}"
+      Ai__Model: "${AI_MODEL:-}"
+      Ai__ApiKey: "${AI_API_KEY:-}"
+      Ai__Endpoint: "${AI_ENDPOINT:-}"
+      # Photos and videos live in the S3-compatible store. The API reaches it as "s3"; browsers as localhost:9000.
+      Media__S3__ServiceUrl: "http://s3:7070"
+      Media__S3__PublicServiceUrl: "http://localhost:9000"
+      Media__S3__AccessKey: "${S3_ACCESS_KEY:-s3-dev}"
+      Media__S3__SecretKey: "${S3_SECRET_KEY:-s3-dev-secret}"
+      Media__S3__CreateBucketIfMissing: "true"
+    ports:
+      - "5000:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      s3:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # web: added once the frontend is ready (nginx serving the built SPA).
+
+volumes:
+  sqlserver-data:
+  s3-data:
