@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Shouldly;
 using Suppliers.Application.Suppliers.Common;
 using Suppliers.Application.Suppliers.Create;
@@ -18,7 +19,8 @@ public abstract class ApiTestBase(SuppliersApiFactory factory) : IAsyncLifetime
         Converters = { new JsonStringEnumConverter() },
     };
 
-    protected HttpClient Client { get; } = factory.CreateClient();
+    // Don't follow redirects: tests assert on them (e.g. media URLs redirect to signed S3 URLs).
+    protected HttpClient Client { get; } = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
     protected SuppliersApiFactory Factory { get; } = factory;
 

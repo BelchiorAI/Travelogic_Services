@@ -71,6 +71,8 @@ if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
     await app.Services.MigrateDatabaseAsync();
 }
 
+await app.Services.EnsureMediaBucketAsync();
+
 // Outermost, so request logs record the final status code after exceptions are turned into ProblemDetails.
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler(new ExceptionHandlerOptions

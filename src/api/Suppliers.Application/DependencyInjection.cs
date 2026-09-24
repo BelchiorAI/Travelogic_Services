@@ -20,9 +20,10 @@ public static class DependencyInjection
         services.AddScoped<GetSupplierByIdHandler>();
         services.AddScoped<ListSuppliersHandler>();
         services.AddScoped<ExtractSupplierDraftHandler>();
-        services.AddScoped<UploadSupplierMediaHandler>();
+        services.AddScoped<RequestMediaUploadHandler>();
+        services.AddScoped<ConfirmMediaUploadHandler>();
         services.AddScoped<DeleteSupplierMediaHandler>();
-        services.AddScoped<GetMediaFileHandler>();
+        services.AddScoped<GetMediaDownloadUrlHandler>();
 
         return services;
     }

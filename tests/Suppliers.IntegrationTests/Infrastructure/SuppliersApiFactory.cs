@@ -7,6 +7,8 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Suppliers.Infrastructure.Persistence;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Testcontainers.MsSql;
 
 namespace Suppliers.IntegrationTests.Infrastructure;
@@ -15,11 +17,20 @@ namespace Suppliers.IntegrationTests.Infrastructure;
 public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly MsSqlContainer _sqlServer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
-    private readonly string _mediaRoot = Path.Combine(Path.GetTempPath(), $"suppliers-tests-media-{Guid.NewGuid():N}");
+
+    // The same S3-compatible gateway as docker-compose.yml, so uploads use real signed URLs.
+    private readonly IContainer _s3 = new ContainerBuilder("versity/versitygw:latest")
+        .WithEnvironment("ROOT_ACCESS_KEY_ID", "test-access")
+        .WithEnvironment("ROOT_SECRET_ACCESS_KEY", "test-secret")
+        .WithCommand("--port", ":7070", "--health", "/health", "posix", "/data")
+        .WithTmpfsMount("/data")
+        .WithPortBinding(7070, assignRandomHostPort: true)
+        .WithWaitStrategy(Wait.ForUnixContainer().UntilHttpRequestIsSucceeded(r => r.ForPort(7070).ForPath("/health")))
+        .Build();
 
     public async Task InitializeAsync()
     {
-        await _sqlServer.StartAsync();
+        await Task.WhenAll(_sqlServer.StartAsync(), _s3.StartAsync());
 
         // Creating the client builds the host, which applies migrations (and seeds) on startup.
         CreateClient().Dispose();
@@ -29,8 +40,7 @@ public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsync
     {
         await base.DisposeAsync();
         await _sqlServer.DisposeAsync();
-        if (Directory.Exists(_mediaRoot))
-            Directory.Delete(_mediaRoot, recursive: true);
+        await _s3.DisposeAsync();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -43,7 +53,10 @@ public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsync
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:SuppliersDb", connectionString);
         builder.UseSetting("Database:ApplyMigrationsOnStartup", "true");
-        builder.UseSetting("Media:RootPath", _mediaRoot);
+        builder.UseSetting("Media:S3:ServiceUrl", $"http://{_s3.Hostname}:{_s3.GetMappedPublicPort(7070)}");
+        builder.UseSetting("Media:S3:AccessKey", "test-access");
+        builder.UseSetting("Media:S3:SecretKey", "test-secret");
+        builder.UseSetting("Media:S3:CreateBucketIfMissing", "true");
 
         // AI extraction is enabled, but talks to a fake model so no test ever calls a real one.
         builder.UseSetting("Ai:Enabled", "true");

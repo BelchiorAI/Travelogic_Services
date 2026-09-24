@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Shouldly;
 using Suppliers.Application.Suppliers.Common;
+using Suppliers.Application.Suppliers.Media;
 using Suppliers.Domain.Suppliers;
 using Suppliers.IntegrationTests.Infrastructure;
 
@@ -11,69 +12,91 @@ namespace Suppliers.IntegrationTests;
 
 public class MediaApiTests(SuppliersApiFactory factory) : ApiTestBase(factory)
 {
+    // Talks to the S3 gateway directly, as a browser would with the signed URLs.
+    private static readonly HttpClient S3 = new(new HttpClientHandler { AllowAutoRedirect = false });
+
     // Only the leading bytes matter to the server; the rest is filler.
     private static byte[] Png(int size = 256) => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, .. new byte[size - 8]];
 
     private static byte[] Mp4(int size = 4096) => [0x00, 0x00, 0x00, 0x18, .. "ftypisom"u8.ToArray(), .. new byte[size - 12]];
 
-    private Task<HttpResponseMessage> UploadAsync(Guid supplierId, byte[] bytes, string fileName, string declaredType = "application/octet-stream")
+    private Task<HttpResponseMessage> RequestUploadAsync(Guid supplierId, string fileName, string contentType, long size) =>
+        Client.PostAsJsonAsync(
+            $"{SuppliersUrl}/{supplierId}/media/uploads", new { fileName, contentType, sizeBytes = size }, Json);
+
+    private async Task<MediaUploadTicket> TicketAsync(Guid supplierId, string fileName, string contentType, long size)
     {
-        var file = new ByteArrayContent(bytes);
-        file.Headers.ContentType = new MediaTypeHeaderValue(declaredType);
-        var form = new MultipartFormDataContent { { file, "file", fileName } };
-        return Client.PostAsync($"{SuppliersUrl}/{supplierId}/media", form);
+        var response = await RequestUploadAsync(supplierId, fileName, contentType, size);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        return (await response.Content.ReadFromJsonAsync<MediaUploadTicket>(Json)).ShouldNotBeNull();
     }
 
-    private async Task<MediaDto> UploadOkAsync(Guid supplierId, byte[] bytes, string fileName)
+    private static async Task PutToS3Async(MediaUploadTicket ticket, byte[] bytes)
     {
-        var response = await UploadAsync(supplierId, bytes, fileName);
-        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
-        return (await response.Content.ReadFromJsonAsync<MediaDto>(Json)).ShouldNotBeNull();
+        using var content = new ByteArrayContent(bytes);
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse(ticket.Headers["Content-Type"]);
+        var response = await S3.PutAsync(ticket.UploadUrl, content);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+    }
+
+    private Task<HttpResponseMessage> ConfirmAsync(Guid supplierId, Guid mediaId, string fileName, string contentType) =>
+        Client.PostAsJsonAsync($"{SuppliersUrl}/{supplierId}/media", new { mediaId, fileName, contentType }, Json);
+
+    /// <summary>The full browser flow: request a signed URL, upload straight to S3, confirm.</summary>
+    private async Task<MediaDto> UploadAsync(Guid supplierId, byte[] bytes, string fileName, string contentType)
+    {
+        var ticket = await TicketAsync(supplierId, fileName, contentType, bytes.Length);
+        await PutToS3Async(ticket, bytes);
+        var confirm = await ConfirmAsync(supplierId, ticket.MediaId, fileName, contentType);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.Created, await confirm.Content.ReadAsStringAsync());
+        return (await confirm.Content.ReadFromJsonAsync<MediaDto>(Json)).ShouldNotBeNull();
     }
 
     [Fact]
-    public async Task Uploaded_photo_is_listed_on_the_supplier_and_can_be_downloaded()
+    public async Task Uploaded_photo_is_recorded_and_served_from_S3_through_a_redirect()
     {
         var supplier = await CreateAsync(Supplier());
         var bytes = Png();
 
-        var response = await UploadAsync(supplier.Id, bytes, "lodge.png");
+        var media = await UploadAsync(supplier.Id, bytes, "lodge.png", "image/png");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.Created);
-        var media = (await response.Content.ReadFromJsonAsync<MediaDto>(Json))!;
         media.Kind.ShouldBe(MediaKind.Image);
-        media.ContentType.ShouldBe("image/png");
-        media.FileName.ShouldBe("lodge.png");
         media.SizeBytes.ShouldBe(bytes.Length);
-        response.Headers.Location!.ToString().ShouldBe(media.Url);
-
         var fetched = await Client.GetFromJsonAsync<SupplierDto>($"{SuppliersUrl}/{supplier.Id}", Json);
         fetched!.Media.ShouldHaveSingleItem().Id.ShouldBe(media.Id);
 
-        var file = await Client.GetAsync(media.Url);
+        var redirect = await Client.GetAsync(media.Url);
+        redirect.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var file = await S3.GetAsync(redirect.Headers.Location);
         file.StatusCode.ShouldBe(HttpStatusCode.OK);
-        file.Content.Headers.ContentType!.MediaType.ShouldBe("image/png");
         (await file.Content.ReadAsByteArrayAsync()).ShouldBe(bytes);
     }
 
     [Fact]
-    public async Task File_type_comes_from_the_contents_not_the_name_or_declared_type()
+    public async Task Upload_ticket_is_a_signed_PUT_for_the_suppliers_folder()
     {
         var supplier = await CreateAsync(Supplier());
 
-        // An MP4 named like a photo and declared as one is still stored as a video.
-        var media = await UploadOkAsync(supplier.Id, Mp4(), "holiday.jpg");
+        var ticket = await TicketAsync(supplier.Id, "drive.mp4", "video/mp4", 4096);
 
-        media.Kind.ShouldBe(MediaKind.Video);
-        media.ContentType.ShouldBe("video/mp4");
+        ticket.Method.ShouldBe("PUT");
+        ticket.Headers["Content-Type"].ShouldBe("video/mp4");
+        ticket.UploadUrl.AbsolutePath.ShouldEndWith($"/suppliers/{supplier.Id}/{ticket.MediaId}.mp4");
+        ticket.UploadUrl.Query.ShouldContain("X-Amz-Signature");
+        ticket.ExpiresAt.ShouldBeGreaterThan(DateTimeOffset.UtcNow);
     }
 
-    [Fact]
-    public async Task Unsupported_file_returns_400_with_a_File_error()
+    [Theory]
+    [InlineData("application/pdf", 1000)]
+    [InlineData("image/gif", 1000)]
+    [InlineData("image/png", SupplierLimits.MaxImageBytes + 1)]
+    [InlineData("video/mp4", SupplierLimits.MaxVideoBytes + 1)]
+    [InlineData("image/png", 0)]
+    public async Task Unsupported_type_or_size_is_rejected_before_any_upload(string contentType, long size)
     {
         var supplier = await CreateAsync(Supplier());
 
-        var response = await UploadAsync(supplier.Id, "MZ this is not a photo"u8.ToArray(), "photo.jpg", "image/jpeg");
+        var response = await RequestUploadAsync(supplier.Id, "file", contentType, size);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -81,50 +104,73 @@ public class MediaApiTests(SuppliersApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
-    public async Task Upload_to_an_unknown_supplier_returns_404()
+    public async Task Contents_that_dont_match_the_declared_type_are_rejected_and_deleted()
     {
-        var response = await UploadAsync(Guid.NewGuid(), Png(), "lodge.png");
+        var supplier = await CreateAsync(Supplier());
+        var ticket = await TicketAsync(supplier.Id, "photo.jpg", "image/jpeg", 64);
+        await PutToS3Async(ticket, "MZ this is really an executable"u8.ToArray());
 
-        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        var confirm = await ConfirmAsync(supplier.Id, ticket.MediaId, "photo.jpg", "image/jpeg");
+
+        confirm.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ConfirmAsync(supplier.Id, ticket.MediaId, "photo.jpg", "image/jpeg"))
+            .StatusCode.ShouldBe(HttpStatusCode.BadRequest); // The object is gone, so it can't be confirmed later.
+        (await Client.GetFromJsonAsync<SupplierDto>($"{SuppliersUrl}/{supplier.Id}", Json))!.Media.ShouldBeEmpty();
     }
 
     [Fact]
-    public async Task Video_supports_range_requests_for_streaming()
+    public async Task Confirming_before_uploading_is_rejected()
     {
         var supplier = await CreateAsync(Supplier());
-        var bytes = Mp4();
-        var media = await UploadOkAsync(supplier.Id, bytes, "drive.mp4");
+        var ticket = await TicketAsync(supplier.Id, "lodge.png", "image/png", 256);
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, media.Url);
-        request.Headers.Range = new RangeHeaderValue(100, 199);
-        var response = await Client.SendAsync(request);
+        var confirm = await ConfirmAsync(supplier.Id, ticket.MediaId, "lodge.png", "image/png");
 
-        response.StatusCode.ShouldBe(HttpStatusCode.PartialContent);
-        (await response.Content.ReadAsByteArrayAsync()).ShouldBe(bytes[100..200]);
+        confirm.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Deleted_media_is_gone_from_the_supplier_and_the_file_store()
+    public async Task Confirming_twice_returns_the_same_media_once()
     {
         var supplier = await CreateAsync(Supplier());
-        var media = await UploadOkAsync(supplier.Id, Png(), "lodge.png");
+        var media = await UploadAsync(supplier.Id, Png(), "lodge.png", "image/png");
+
+        var again = await ConfirmAsync(supplier.Id, media.Id, "lodge.png", "image/png");
+
+        again.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await again.Content.ReadFromJsonAsync<MediaDto>(Json))!.Id.ShouldBe(media.Id);
+        (await Client.GetFromJsonAsync<SupplierDto>($"{SuppliersUrl}/{supplier.Id}", Json))!.Media.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Unknown_supplier_returns_404()
+    {
+        (await RequestUploadAsync(Guid.NewGuid(), "lodge.png", "image/png", 256)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await Client.GetAsync($"/api/v1/media/{Guid.NewGuid()}")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Deleted_media_is_gone_from_the_supplier_and_from_S3()
+    {
+        var supplier = await CreateAsync(Supplier());
+        var media = await UploadAsync(supplier.Id, Mp4(), "drive.mp4", "video/mp4");
+        var s3Url = (await Client.GetAsync(media.Url)).Headers.Location;
 
         var delete = await Client.DeleteAsync($"{SuppliersUrl}/{supplier.Id}/media/{media.Id}");
 
         delete.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await Client.GetAsync(media.Url)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
-        var fetched = await Client.GetFromJsonAsync<SupplierDto>($"{SuppliersUrl}/{supplier.Id}", Json);
-        fetched!.Media.ShouldBeEmpty();
-        (await Client.DeleteAsync($"{SuppliersUrl}/{supplier.Id}/media/{media.Id}")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await S3.GetAsync(s3Url)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        (await Client.GetFromJsonAsync<SupplierDto>($"{SuppliersUrl}/{supplier.Id}", Json))!.Media.ShouldBeEmpty();
     }
 
     [Fact]
     public async Task First_photo_becomes_the_cover_image_in_the_list()
     {
         var supplier = await CreateAsync(Supplier());
-        await UploadOkAsync(supplier.Id, Mp4(), "drive.mp4");
-        var photo = await UploadOkAsync(supplier.Id, Png(), "cover.png");
-        await UploadOkAsync(supplier.Id, Png(), "second.png");
+        await UploadAsync(supplier.Id, Mp4(), "drive.mp4", "video/mp4");
+        var photo = await UploadAsync(supplier.Id, Png(), "cover.png", "image/png");
+        await UploadAsync(supplier.Id, Png(), "second.png", "image/png");
 
         using var json = JsonDocument.Parse(await Client.GetStringAsync(SuppliersUrl));
 
@@ -136,9 +182,9 @@ public class MediaApiTests(SuppliersApiFactory factory) : ApiTestBase(factory)
     {
         var supplier = await CreateAsync(Supplier());
         for (var i = 0; i < SupplierLimits.MaxMediaPerSupplier; i++)
-            await UploadOkAsync(supplier.Id, Png(64), $"photo-{i}.png");
+            await UploadAsync(supplier.Id, Png(64), $"photo-{i}.png", "image/png");
 
-        var response = await UploadAsync(supplier.Id, Png(64), "one-too-many.png");
+        var response = await RequestUploadAsync(supplier.Id, "one-too-many.png", "image/png", 64);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }

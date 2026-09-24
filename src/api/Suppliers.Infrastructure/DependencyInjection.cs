@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
 using Suppliers.Application.Abstractions;
@@ -31,8 +32,9 @@ public static class DependencyInjection
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<ISupplierQueries, SupplierQueries>();
 
-        services.Configure<MediaStorageOptions>(configuration.GetSection(MediaStorageOptions.SectionName));
-        services.AddSingleton<IMediaStorage, LocalMediaStorage>();
+        services.Configure<S3MediaOptions>(configuration.GetSection(S3MediaOptions.SectionName));
+        services.AddSingleton<S3MediaStorage>();
+        services.AddSingleton<IMediaStorage>(sp => sp.GetRequiredService<S3MediaStorage>());
 
         services.AddSupplierExtraction(configuration);
 
@@ -58,6 +60,14 @@ public static class DependencyInjection
 
         services.AddChatClient(_ => new ChatClient(ai.Model, new ApiKeyCredential(ai.ApiKey), clientOptions).AsIChatClient());
         services.AddScoped<ISupplierExtractionService, AiSupplierExtractionService>();
+    }
+
+    /// <summary>Creates the media bucket when <c>Media:S3:CreateBucketIfMissing</c> is set (local development).</summary>
+    public static async Task EnsureMediaBucketAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        var options = services.GetRequiredService<IOptions<S3MediaOptions>>().Value;
+        if (options.CreateBucketIfMissing)
+            await services.GetRequiredService<S3MediaStorage>().EnsureBucketAsync(cancellationToken);
     }
 
     /// <summary>Applies pending migrations; EF Core then runs the seeding callbacks.</summary>

@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Net.Http.Headers;
 using Suppliers.Application.Suppliers.Common;
 using Suppliers.Application.Suppliers.Media;
 using Suppliers.Domain.Suppliers;
@@ -9,26 +7,28 @@ namespace Suppliers.Api.Endpoints;
 
 internal static class MediaEndpoints
 {
-    // Largest allowed file plus room for the multipart envelope.
-    private const long MaxUploadRequestBytes = SupplierLimits.MaxVideoBytes + 1024 * 1024;
-
     public static RouteGroupBuilder MapMediaEndpoints(this RouteGroupBuilder v1)
     {
-        v1.MapPost("/suppliers/{id:guid}/media", UploadMedia)
-            .WithName("UploadSupplierMedia")
+        v1.MapPost("/suppliers/{id:guid}/media/uploads", RequestUpload)
+            .WithName("RequestSupplierMediaUpload")
             .WithTags("Media")
-            .WithSummary("Upload a photo or video to a supplier's profile")
+            .WithSummary("Step 1 of 3: get a signed URL to upload a photo or video to")
             .WithDescription(
-                $"Multipart form with one file in the \"file\" field: {MediaFileType.SupportedFormats}. " +
-                $"Images up to {SupplierLimits.MaxImageBytes / (1024 * 1024)} MB, videos up to {SupplierLimits.MaxVideoBytes / (1024 * 1024)} MB, " +
-                $"at most {SupplierLimits.MaxMediaPerSupplier} per supplier. The file type is checked from its contents.")
-            .Accepts<IFormFile>("multipart/form-data")
-            .WithMetadata(new RequestSizeLimitAttribute(MaxUploadRequestBytes))
-            // A token-less JSON API: no cookies or browser forms, so antiforgery tokens don't apply.
-            .DisableAntiforgery()
+                $"Checks the declared file ({MediaFileType.SupportedFormats}; images up to " +
+                $"{SupplierLimits.MaxImageBytes / (1024 * 1024)} MB, videos up to {SupplierLimits.MaxVideoBytes / (1024 * 1024)} MB, " +
+                $"at most {SupplierLimits.MaxMediaPerSupplier} per supplier) and returns a URL valid for 15 minutes. " +
+                "Step 2: send the file to uploadUrl with the given method and headers. " +
+                "Step 3: POST /suppliers/{id}/media with the mediaId.")
             .ProducesValidationProblem()
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status413PayloadTooLarge);
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        v1.MapPost("/suppliers/{id:guid}/media", ConfirmUpload)
+            .WithName("ConfirmSupplierMediaUpload")
+            .WithTags("Media")
+            .WithSummary("Step 3 of 3: confirm an uploaded photo or video and add it to the supplier")
+            .WithDescription("Verifies the uploaded file's real type and size, then records it. Safe to retry.")
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         v1.MapDelete("/suppliers/{id:guid}/media/{mediaId:guid}", DeleteMedia)
             .WithName("DeleteSupplierMedia")
@@ -36,27 +36,36 @@ internal static class MediaEndpoints
             .WithSummary("Remove a photo or video from a supplier's profile")
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        v1.MapGet("/media/{mediaId:guid}", GetMediaFile)
+        v1.MapGet("/media/{mediaId:guid}", GetMedia)
             .WithName("GetMediaFile")
             .WithTags("Media")
-            .WithSummary("Download a photo or video")
-            .WithDescription("Supports range requests, so videos can be streamed and seeked.")
+            .WithSummary("View a photo or video")
+            .WithDescription("Redirects to a short-lived signed URL on the object store, which supports range requests for video.")
+            .Produces(StatusCodes.Status302Found)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         return v1;
     }
 
-    private static async Task<Created<MediaDto>> UploadMedia(
+    /// <summary>What the client plans to upload; the real type and size are checked when it confirms.</summary>
+    internal sealed record RequestUploadBody(string FileName, string ContentType, long SizeBytes);
+
+    private static async Task<Ok<MediaUploadTicket>> RequestUpload(
         Guid id,
-        IFormFile file,
-        UploadSupplierMediaHandler handler,
+        RequestUploadBody body,
+        RequestMediaUploadHandler handler,
+        CancellationToken cancellationToken) =>
+        TypedResults.Ok(await handler.HandleAsync(
+            new RequestMediaUploadRequest(id, body.FileName, body.ContentType, body.SizeBytes), cancellationToken));
+
+    private static async Task<Created<MediaDto>> ConfirmUpload(
+        Guid id,
+        ConfirmMediaUploadRequest body,
+        ConfirmMediaUploadHandler handler,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        await using var content = file.OpenReadStream();
-        var media = await handler.HandleAsync(
-            new UploadSupplierMediaRequest(id, file.FileName, file.Length, content), cancellationToken);
-
+        var media = await handler.HandleAsync(id, body, cancellationToken);
         return TypedResults.Created($"{httpContext.Request.PathBase}{media.Url}", media);
     }
 
@@ -70,18 +79,18 @@ internal static class MediaEndpoints
         return TypedResults.NoContent();
     }
 
-    private static async Task<FileStreamHttpResult> GetMediaFile(
+    private static async Task<RedirectHttpResult> GetMedia(
         Guid mediaId,
-        GetMediaFileHandler handler,
+        GetMediaDownloadUrlHandler handler,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var file = await handler.HandleAsync(mediaId, cancellationToken);
+        var url = await handler.HandleAsync(mediaId, cancellationToken);
 
-        // A media id always refers to the same bytes, so browsers and CDNs may cache it for good.
-        httpContext.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        httpContext.Response.Headers[HeaderNames.XContentTypeOptions] = "nosniff";
+        // The signed URL expires, so browsers may reuse this redirect only while it is still valid.
+        var maxAge = (int)(GetMediaDownloadUrlHandler.DownloadUrlLifetime - TimeSpan.FromMinutes(5)).TotalSeconds;
+        httpContext.Response.Headers.CacheControl = $"private, max-age={maxAge}";
 
-        return TypedResults.Stream(file.Content, file.ContentType, lastModified: file.UploadedAt, enableRangeProcessing: true);
+        return TypedResults.Redirect(url.ToString());
     }
 }
