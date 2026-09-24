@@ -1,3 +1,6 @@
+# One command runs the whole stack:  docker compose up --build
+# API: http://localhost:5000  (docs at /scalar/v1, health at /health/ready)
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -15,6 +18,25 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/api/Suppliers.Api/Dockerfile
+    container_name: suppliers-api
+    environment:
+      ConnectionStrings__SuppliersDb: "Server=sqlserver,1433;Database=SuppliersDb;User Id=sa;Password=${MSSQL_SA_PASSWORD:-Suppliers_Dev_Passw0rd!};TrustServerCertificate=True"
+      Database__ApplyMigrationsOnStartup: "true"
+      Cors__AllowedOrigins__0: "http://localhost:5173"
+      Cors__AllowedOrigins__1: "http://localhost:8080"
+    ports:
+      - "5000:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # web: added once the frontend is ready (nginx serving the built SPA).
 
 volumes:
   sqlserver-data:
