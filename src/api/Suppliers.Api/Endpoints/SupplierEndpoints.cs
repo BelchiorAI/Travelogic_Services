@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Suppliers.Application.Suppliers.Common;
 using Suppliers.Application.Suppliers.Create;
@@ -34,10 +35,12 @@ internal static class SupplierEndpoints
         suppliers.MapPost("/extract", ExtractSupplierDraft)
             .WithName("ExtractSupplierDraft")
             .WithSummary("Extract a supplier draft from pasted text with AI")
-            .WithDescription(
+            // Invariant culture: the contract must not depend on the server's locale (e.g. "20 000" with a non-breaking space).
+            .WithDescription(string.Create(
+                CultureInfo.InvariantCulture,
                 $"Returns a draft to pre-fill the create form plus warnings keyed like validation errors. Nothing is saved. " +
                 $"Text is limited to {ExtractSupplierDraftRequest.MaxTextLength:N0} characters and requests to 10 per minute. " +
-                "Returns 503 when AI extraction is not enabled (see /features).")
+                $"Returns 503 when AI extraction is not enabled (see /features)."))
             .RequireRateLimiting(RateLimitPolicies.AiExtraction)
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status429TooManyRequests)

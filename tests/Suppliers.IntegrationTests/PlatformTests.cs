@@ -46,6 +46,15 @@ public class PlatformTests(SuppliersApiFactory factory) : ApiTestBase(factory)
     }
 
     [Fact]
+    public async Task OpenApi_document_does_not_depend_on_the_server_culture()
+    {
+        var document = await Client.GetStringAsync("/openapi/v1.json");
+
+        document.ShouldContain("20,000 characters");
+        document.ShouldNotContain(" ");
+    }
+
+    [Fact]
     public async Task OpenApi_document_types_price_as_a_plain_number_for_generated_clients()
     {
         using var json = JsonDocument.Parse(await Client.GetStringAsync("/openapi/v1.json"));
