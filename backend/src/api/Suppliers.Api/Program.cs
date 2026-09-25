@@ -5,6 +5,7 @@ using Scalar.AspNetCore;
 using Serilog;
 using Suppliers.Api.Endpoints;
 using Suppliers.Api.Errors;
+using Suppliers.Api.Startup;
 using Suppliers.Application;
 using Suppliers.Infrastructure;
 
@@ -44,11 +45,12 @@ builder.Services
     })
     .AddOpenApi();
 
-builder.Services.AddHealthChecks()
+var healthChecks = builder.Services.AddHealthChecks()
     .AddSqlServer(
         builder.Configuration.GetConnectionString(Suppliers.Infrastructure.DependencyInjection.ConnectionStringName)!,
         name: "sqlserver",
         tags: ["ready"]);
+builder.Services.AddStartupTasks(healthChecks);
 
 builder.Services.AddApiRateLimiting();
 
@@ -66,12 +68,6 @@ builder.Services.AddCors(options => options.AddPolicy(FrontendCorsPolicy, policy
 
 var app = builder.Build();
 
-if (app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
-{
-    await app.Services.MigrateDatabaseAsync();
-}
-
-await app.Services.EnsureMediaBucketAsync();
 
 // Outermost, so request logs record the final status code after exceptions are turned into ProblemDetails.
 app.UseSerilogRequestLogging();
@@ -82,6 +78,8 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
         is < StatusCodes.Status500InternalServerError or StatusCodes.Status503ServiceUnavailable,
 });
 app.UseStatusCodePages();
+// Migrations and bucket setup run after the port opens; requests wait for them (see StartupTasks).
+app.UseStartupTasks();
 app.UseCors(FrontendCorsPolicy);
 app.UseRateLimiter();
 

@@ -32,8 +32,16 @@ public sealed class SuppliersApiFactory : WebApplicationFactory<Program>, IAsync
     {
         await Task.WhenAll(_sqlServer.StartAsync(), _s3.StartAsync());
 
-        // Creating the client builds the host, which applies migrations (and seeds) on startup.
-        CreateClient().Dispose();
+        // Creating the client starts the host; migrations (and seeding) then run in the background,
+        // so wait until /health/ready says they're done before any test touches the database.
+        using var client = CreateClient();
+        var deadline = DateTime.UtcNow.AddMinutes(2);
+        while ((await client.GetAsync("/health/ready")).StatusCode != System.Net.HttpStatusCode.OK)
+        {
+            if (DateTime.UtcNow > deadline)
+                throw new TimeoutException("The API didn't become ready within 2 minutes.");
+            await Task.Delay(250);
+        }
     }
 
     async Task IAsyncLifetime.DisposeAsync()
