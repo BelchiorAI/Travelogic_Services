@@ -13,8 +13,6 @@ services:
     name: travelogic-supplier-api
     runtime: docker
     plan: free
-    # Next to the database: create Azure SQL in Germany West Central or West Europe.
-    region: frankfurt
     rootDir: backend
     dockerContext: .
     dockerfilePath: ./src/api/Suppliers.Api/Dockerfile
