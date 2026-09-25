@@ -19,18 +19,32 @@ flowchart LR
 
 ## Run it locally
 
-You need [Docker](https://www.docker.com/products/docker-desktop/) and [Node.js](https://nodejs.org/) 20+ (or [Bun](https://bun.sh/)).
+You need **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** (running) and **[Node.js](https://nodejs.org/) 20 or newer**.
 
-**1. Start the API, database and S3 store**
+| | Windows | macOS / Linux |
+| --- | --- | --- |
+| **Start** | double-click `start.cmd` | `./start.sh` |
+| **Stop** (keeps your data) | double-click `stop.cmd` | `./stop.sh` |
+| **Stop and delete all data** | `stop.cmd --reset` | `./stop.sh --reset` |
+
+The start script checks the prerequisites, asks once for an optional Gemini API key (for AI import; press Enter to skip), starts the API, database and file storage in Docker, waits until the API is ready, then starts the web app and opens it in your browser. The first run downloads about 1 GB and takes a few minutes; later runs are quick.
+
+- Web app: the address the script prints (usually http://localhost:8080)
+- API docs: http://localhost:5000/scalar/v1
+
+<details>
+<summary>Running the parts by hand</summary>
+
+**1. API, database and S3 store**
 
 ```bash
 cd backend
 docker compose up --build
 ```
 
-The API runs on http://localhost:5000 (interactive docs at http://localhost:5000/scalar/v1) and is seeded with six South African suppliers. To switch on the AI import, copy `backend/.env.example` to `backend/.env`, add your model and key, and run `docker compose up -d` again.
+The API runs on http://localhost:5000 and is seeded with six South African suppliers. To switch on AI import, copy `backend/.env.example` to `backend/.env`, add your model and key, and run `docker compose up -d` again.
 
-**2. Start the web app** (in a second terminal)
+**2. Web app** (in a second terminal)
 
 ```bash
 cd frontend
@@ -39,7 +53,7 @@ npm install                  # or: bun install
 npm run dev                  # or: bun run dev
 ```
 
-Open the address it prints (usually http://localhost:8080).
+</details>
 
 ## Tests
 

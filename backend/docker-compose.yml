@@ -1,9 +1,14 @@
 # One command runs the whole stack:  docker compose up --build
 # API: http://localhost:5000  (docs at /scalar/v1, health at /health/ready)
 
+# A fixed project name, so containers, volumes and data stay the same whatever the folder is called.
+name: supplier-management
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    # SQL Server only ships an Intel (amd64) image; Apple Silicon Macs run it under emulation.
+    platform: linux/amd64
     container_name: suppliers-sqlserver
     environment:
       ACCEPT_EULA: "Y"
