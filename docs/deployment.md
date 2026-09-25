@@ -94,8 +94,8 @@ The API's first deploy will likely fail its health check because the Azure firew
 | AI import says "not switched on" | `Ai__ApiKey` is missing on the API service. |
 | AI import fails with "could not be reached" | The model is overloaded (try again later) or the key is invalid. You can change `Ai__Model`, e.g. to `gemini-flash-latest`. |
 
-**Setting the bucket's CORS rule by hand** (only needed if the API's log shows the CORS warning). Install Backblaze's tool (`pip install b2`), sign in with an application key that has access to all buckets, then run (all on one line, with your bucket name and web app URL):
+**Setting the bucket's CORS rule by hand** (only needed if the API's log shows the CORS warning). Backblaze's web console can only create *view* rules, so run the included script once (Python only, nothing to install). It asks for your account's **master application key** (Application Keys > Master Application Key) and sends it only to Backblaze:
 
 ```
-b2 bucket update --cors-rules "[{\"corsRuleName\":\"supplier-hub\",\"allowedOrigins\":[\"https://travelogic-supplier-hub.onrender.com\"],\"allowedOperations\":[\"s3_put_object\",\"s3_get_object\",\"s3_head_object\"],\"allowedHeaders\":[\"*\"],\"exposeHeaders\":[\"ETag\"],\"maxAgeSeconds\":3600}]" <your-bucket-name> allPrivate
+python backend/scripts/set_b2_cors.py
 ```
