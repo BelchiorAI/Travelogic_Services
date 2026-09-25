@@ -197,12 +197,13 @@ internal sealed class S3MediaStorage : IMediaStorage, IDisposable
             }, cancellationToken);
             _logger.LogInformation("Media bucket CORS allows {Origins}", string.Join(", ", _options.CorsAllowedOrigins));
         }
-        catch (AmazonS3Exception ex)
+        catch (Exception ex) when (ex is AmazonS3Exception or AmazonClientException or HttpRequestException)
         {
-            // Not fatal: the rule can also be set in the storage provider's console (see docs/deployment.md).
+            // Not fatal (wrong or missing storage settings shouldn't take the whole API down); the rule can also
+            // be set in the storage provider's console (see docs/deployment.md).
             _logger.LogWarning(ex,
-                "Could not set CORS on media bucket {Bucket} ({Code}); browser uploads will fail until it is configured",
-                _options.BucketName, ex.ErrorCode);
+                "Could not set CORS on media bucket {Bucket}; browser uploads will fail until it is configured",
+                _options.BucketName);
         }
     }
 
