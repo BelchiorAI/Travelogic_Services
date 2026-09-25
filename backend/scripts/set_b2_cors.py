@@ -28,15 +28,30 @@ def call(url, body=None, headers=None):
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
-        detail = json.load(error).get("message", error.reason)
+        if error.code == 401:
+            sys.exit("Backblaze rejected the keyID or key (401). Copy both again from the Master Application Key "
+                     "section of the Application Keys page; the keyID is shown next to it.")
+        try:
+            detail = json.load(error).get("message") or error.reason
+        except ValueError:
+            detail = error.reason
         sys.exit(f"Backblaze refused the request ({error.code}): {detail}")
+
+
+def ask(prompt, secret=False):
+    """Asks until the answer isn't empty."""
+    while True:
+        answer = (getpass.getpass(prompt) if secret else input(prompt)).strip()
+        if answer:
+            return answer
+        print("  This is required, please paste it in.")
 
 
 def main():
     print("Set the upload/view rule (CORS) on a Backblaze B2 bucket.\n")
-    key_id = input("Master application keyID: ").strip()
-    key = getpass.getpass("Master application key (hidden as you type): ").strip()
-    bucket_name = input("Bucket name: ").strip()
+    key_id = ask("Master application keyID: ")
+    key = ask("Master application key (hidden as you type): ", secret=True)
+    bucket_name = ask("Bucket name (e.g. travelogic-supplier-media-bp): ")
     origin = input(f"Web app address [{DEFAULT_ORIGIN}]: ").strip().rstrip("/") or DEFAULT_ORIGIN
 
     credentials = base64.b64encode(f"{key_id}:{key}".encode()).decode()
