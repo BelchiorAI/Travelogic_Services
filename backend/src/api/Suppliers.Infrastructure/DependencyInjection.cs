@@ -62,12 +62,17 @@ public static class DependencyInjection
         services.AddScoped<ISupplierExtractionService, AiSupplierExtractionService>();
     }
 
-    /// <summary>Creates the media bucket when <c>Media:S3:CreateBucketIfMissing</c> is set (local development).</summary>
+    /// <summary>
+    /// Prepares the media bucket: creates it when <c>Media:S3:CreateBucketIfMissing</c> is set (local development),
+    /// and applies the browser CORS rule when <c>Media:S3:CorsAllowedOrigins</c> is set (hosted environments).
+    /// </summary>
     public static async Task EnsureMediaBucketAsync(this IServiceProvider services, CancellationToken cancellationToken = default)
     {
         var options = services.GetRequiredService<IOptions<S3MediaOptions>>().Value;
+        var storage = services.GetRequiredService<S3MediaStorage>();
         if (options.CreateBucketIfMissing)
-            await services.GetRequiredService<S3MediaStorage>().EnsureBucketAsync(cancellationToken);
+            await storage.EnsureBucketAsync(cancellationToken);
+        await storage.ConfigureCorsAsync(cancellationToken);
     }
 
     /// <summary>Applies pending migrations; EF Core then runs the seeding callbacks.</summary>

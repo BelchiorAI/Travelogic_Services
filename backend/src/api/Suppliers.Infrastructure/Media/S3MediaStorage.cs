@@ -3,6 +3,7 @@ using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Suppliers.Application.Abstractions;
 
@@ -30,6 +31,12 @@ public sealed class S3MediaOptions
 
     /// <summary>Local development convenience; production buckets are created by infrastructure code.</summary>
     public bool CreateBucketIfMissing { get; init; }
+
+    /// <summary>
+    /// Web app origins allowed to upload and download directly (e.g. "https://app.example.com"). When set, the API
+    /// applies a matching CORS rule to the bucket on startup, so browsers can use the signed URLs.
+    /// </summary>
+    public string[] CorsAllowedOrigins { get; init; } = [];
 }
 
 /// <summary>Stores media in an S3 bucket. The API only signs URLs and inspects objects; browsers move the bytes.</summary>
@@ -40,9 +47,12 @@ internal sealed class S3MediaStorage : IMediaStorage, IDisposable
     private readonly IAmazonS3 _signingClient;
     private readonly Protocol _publicProtocol;
 
-    public S3MediaStorage(IOptions<S3MediaOptions> options)
+    private readonly ILogger<S3MediaStorage> _logger;
+
+    public S3MediaStorage(IOptions<S3MediaOptions> options, ILogger<S3MediaStorage> logger)
     {
         _options = options.Value;
+        _logger = logger;
         _client = CreateClient(_options.ServiceUrl);
 
         var publicUrl = string.IsNullOrWhiteSpace(_options.PublicServiceUrl) ? _options.ServiceUrl : _options.PublicServiceUrl;
@@ -156,6 +166,44 @@ internal sealed class S3MediaStorage : IMediaStorage, IDisposable
             UseClientRegion = false,
             BucketRegionName = _options.Region == "us-east-1" ? null : _options.Region,
         }, cancellationToken);
+    }
+
+    /// <summary>Lets the web app's origins PUT (upload) and GET (view) objects with signed URLs.</summary>
+    public async Task ConfigureCorsAsync(CancellationToken cancellationToken)
+    {
+        if (_options.CorsAllowedOrigins.Length == 0)
+            return;
+
+        try
+        {
+            await _client.PutCORSConfigurationAsync(new PutCORSConfigurationRequest
+            {
+                BucketName = _options.BucketName,
+                Configuration = new CORSConfiguration
+                {
+                    Rules =
+                    [
+                        new CORSRule
+                        {
+                            Id = "supplier-hub-browser-access",
+                            AllowedOrigins = [.. _options.CorsAllowedOrigins],
+                            AllowedMethods = ["PUT", "GET", "HEAD"],
+                            AllowedHeaders = ["*"],
+                            ExposeHeaders = ["ETag"],
+                            MaxAgeSeconds = 3600,
+                        },
+                    ],
+                },
+            }, cancellationToken);
+            _logger.LogInformation("Media bucket CORS allows {Origins}", string.Join(", ", _options.CorsAllowedOrigins));
+        }
+        catch (AmazonS3Exception ex)
+        {
+            // Not fatal: the rule can also be set in the storage provider's console (see docs/deployment.md).
+            _logger.LogWarning(ex,
+                "Could not set CORS on media bucket {Bucket} ({Code}); browser uploads will fail until it is configured",
+                _options.BucketName, ex.ErrorCode);
+        }
     }
 
     public void Dispose()

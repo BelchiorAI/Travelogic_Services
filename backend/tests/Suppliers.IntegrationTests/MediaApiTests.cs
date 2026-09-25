@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Shouldly;
 using Suppliers.Application.Suppliers.Common;
 using Suppliers.Application.Suppliers.Media;
@@ -175,6 +176,30 @@ public class MediaApiTests(SuppliersApiFactory factory) : ApiTestBase(factory)
         using var json = JsonDocument.Parse(await Client.GetStringAsync(SuppliersUrl));
 
         json.RootElement.GetProperty("items")[0].GetProperty("coverImageUrl").GetString().ShouldBe(photo.Url);
+    }
+
+    [Theory]
+    [InlineData("https://app.example", true)]
+    [InlineData("https://evil.example", false)]
+    public async Task Configured_web_app_origin_may_upload_straight_to_the_bucket(string origin, bool allowed)
+    {
+        // Starting a host with CorsAllowedOrigins applies the bucket CORS rule, as it does on Render.
+        await using var api = Factory.WithWebHostBuilder(b => b.UseSetting("Media:S3:CorsAllowedOrigins:0", "https://app.example"));
+        using var client = api.CreateClient();
+        // A name the sample data doesn't use: starting the extra host seeds the sample suppliers again.
+        var supplier = await CreateAsync(Supplier("CORS Test Lodge"));
+        var ticketResponse = await client.PostAsJsonAsync(
+            $"{SuppliersUrl}/{supplier.Id}/media/uploads", new { fileName = "lodge.png", contentType = "image/png", sizeBytes = 256 }, Json);
+        var ticket = (await ticketResponse.Content.ReadFromJsonAsync<MediaUploadTicket>(Json))!;
+
+        using var preflight = new HttpRequestMessage(HttpMethod.Options, ticket.UploadUrl);
+        preflight.Headers.Add("Origin", origin);
+        preflight.Headers.Add("Access-Control-Request-Method", "PUT");
+        preflight.Headers.Add("Access-Control-Request-Headers", "content-type");
+        var response = await S3.SendAsync(preflight);
+
+        var allowOrigin = response.Headers.TryGetValues("Access-Control-Allow-Origin", out var values) ? values.Single() : null;
+        (allowOrigin == origin || allowOrigin == "*").ShouldBe(allowed, $"Access-Control-Allow-Origin: {allowOrigin}");
     }
 
     [Fact]

@@ -6,7 +6,7 @@ A back-office system for a tour operator to manage **suppliers** (lodges, hotels
 | --- | --- |
 | [`backend/`](backend/) | Supplier API: ASP.NET Core (.NET 10), SQL Server, S3 for media, optional AI (Gemini or any OpenAI-compatible model). See [backend/README.md](backend/README.md). |
 | [`frontend/`](frontend/) | Supplier Hub web app: React (TanStack Start, Router and Query), Tailwind and shadcn/ui. |
-| [`docs/`](docs/) | [Architecture and technical decisions](docs/architecture.md). |
+| [`docs/`](docs/) | [Architecture and technical decisions](docs/architecture.md) · [Free hosting on Render](docs/deployment.md). |
 
 ```mermaid
 flowchart LR

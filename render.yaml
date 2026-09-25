@@ -1,0 +1,76 @@
+# Render Blueprint: the Supplier API (Docker web service) and the Supplier Hub web app (static site).
+# Step-by-step setup, including the free database (Azure SQL) and file storage (Backblaze B2): docs/deployment.md
+#
+# Values marked `sync: false` are secrets: Render asks for them when you create the Blueprint, and they
+# never live in this repository.
+#
+# The two URLs below assume Render gives each service its name as its subdomain. If it adds a suffix
+# (because the name is taken), update Cors__AllowedOrigins__0, Media__S3__CorsAllowedOrigins__0 and
+# VITE_API_BASE_URL to the real URLs.
+
+services:
+  - type: web
+    name: travelogic-supplier-api
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerContext: .
+    dockerfilePath: ./src/api/Suppliers.Api/Dockerfile
+    healthCheckPath: /health/live
+    envVars:
+      # The container listens on 8080 (see the Dockerfile).
+      - key: PORT
+        value: "8080"
+      # Render sits behind a proxy: use the caller's real IP (per-client rate limits) and https scheme.
+      - key: ASPNETCORE_FORWARDEDHEADERS_ENABLED
+        value: "true"
+      - key: Database__ApplyMigrationsOnStartup
+        value: "true"
+      - key: ConnectionStrings__SuppliersDb
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        value: https://travelogic-supplier-hub.onrender.com
+      # Photos and videos: Backblaze B2 (S3-compatible).
+      - key: Media__S3__ServiceUrl
+        sync: false # e.g. https://s3.eu-central-003.backblazeb2.com
+      - key: Media__S3__Region
+        sync: false # e.g. eu-central-003
+      - key: Media__S3__BucketName
+        sync: false
+      - key: Media__S3__AccessKey
+        sync: false # B2 application key ID
+      - key: Media__S3__SecretKey
+        sync: false # B2 application key
+      - key: Media__S3__CorsAllowedOrigins__0
+        value: https://travelogic-supplier-hub.onrender.com
+      # AI import: Gemini through its OpenAI-compatible endpoint.
+      - key: Ai__Enabled
+        value: "true"
+      - key: Ai__Model
+        value: gemini-3.5-flash
+      - key: Ai__Endpoint
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: Ai__ApiKey
+        sync: false
+
+  - type: web
+    name: travelogic-supplier-hub
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install --no-audit --no-fund && npm run build
+    staticPublishPath: ./dist/client
+    envVars:
+      # Build a static single-page app (see vite.config.ts) that talks to the hosted API.
+      - key: BUILD_TARGET
+        value: static
+      - key: VITE_API_BASE_URL
+        value: https://travelogic-supplier-api.onrender.com
+      - key: VITE_USE_MOCKS
+        value: "false"
+      - key: NODE_VERSION
+        value: "22"
+    routes:
+      # Every app route (e.g. /suppliers/123) is served by the app shell; real files are served as-is.
+      - type: rewrite
+        source: /*
+        destination: /_shell.html
