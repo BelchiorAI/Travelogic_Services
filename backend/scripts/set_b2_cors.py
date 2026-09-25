@@ -52,7 +52,11 @@ def main():
     key_id = ask("Master application keyID: ")
     key = ask("Master application key (hidden as you type): ", secret=True)
     bucket_name = ask("Bucket name (e.g. travelogic-supplier-media-bp): ")
-    origin = input(f"Web app address [{DEFAULT_ORIGIN}]: ").strip().rstrip("/") or DEFAULT_ORIGIN
+    while True:
+        origin = input(f"Web app address (press Enter for {DEFAULT_ORIGIN}): ").strip().rstrip("/") or DEFAULT_ORIGIN
+        if origin.startswith(("https://", "http://")) and "backblazeb2.com" not in origin:
+            break
+        print("  This is the website's address (where people open the app), not the storage endpoint.")
 
     credentials = base64.b64encode(f"{key_id}:{key}".encode()).decode()
     account = call("https://api.backblazeb2.com/b2api/v2/b2_authorize_account",
@@ -68,7 +72,7 @@ def main():
         "corsRuleName": "supplier-hub",
         "allowedOrigins": [origin],
         # Upload (PUT with a signed URL), view and check files through the S3-compatible API.
-        "allowedOperations": ["s3_put_object", "s3_get_object", "s3_head_object"],
+        "allowedOperations": ["s3_put", "s3_get", "s3_head"],
         "allowedHeaders": ["*"],
         "exposeHeaders": ["ETag"],
         "maxAgeSeconds": 3600,
